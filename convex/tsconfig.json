@@ -20,6 +20,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["./**/*"],
+  "include": ["./**/*", "../context/AuthContext.tsx"],
   "exclude": ["./_generated"]
 }

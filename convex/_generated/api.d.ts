@@ -9,6 +9,14 @@
  */
 
 import type * as announcements from "../announcements.js";
+import type * as courses from "../courses.js";
+import type * as grades from "../grades.js";
+import type * as ospekKkn from "../ospekKkn.js";
+import type * as registrations from "../registrations.js";
+import type * as scheadules from "../scheadules.js";
+import type * as seedCourse from "../seedCourse.js";
+import type * as seedData from "../seedData.js";
+import type * as teacherEvalutions from "../teacherEvalutions.js";
 import type * as users from "../users.js";
 
 import type {
@@ -19,6 +27,14 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   announcements: typeof announcements;
+  courses: typeof courses;
+  grades: typeof grades;
+  ospekKkn: typeof ospekKkn;
+  registrations: typeof registrations;
+  scheadules: typeof scheadules;
+  seedCourse: typeof seedCourse;
+  seedData: typeof seedData;
+  teacherEvalutions: typeof teacherEvalutions;
   users: typeof users;
 }>;
 
