@@ -1,229 +1,146 @@
-import { View, Text, StyleSheet, ScrollView, StatusBar } from 'react-native';
-import { useAuth } from '../context/AuthContext';
-import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
+import { PageHeader, LoadingScreen } from '../components/ui';
 import { LinearGradient } from 'expo-linear-gradient';
-import Colors from '../constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
+import C from '../constants/Colors';
 
-const BASE_SPP = 2_500_000;
 const COST_PER_SKS = 150_000;
-const LAB_FEE = 500_000;
-const STUDENT_ACTIVITY_FEE = 250_000;
-const INSURANCE_FEE = 100_000;
+const BASE_SPP     = 2_500_000;
+const LAB          = 500_000;
+const KEMAHASISWAAN= 250_000;
+const ASURANSI     = 100_000;
 
-function formatRupiah(n: number) {
-  return 'Rp ' + n.toLocaleString('id-ID');
-}
+const fmt = (n: number) => `Rp ${n.toLocaleString('id-ID')}`;
 
 export default function SemesterCostScreen() {
   const { user } = useAuth();
-  const registrations = useQuery(
-    api.registrations.listByUser,
-    user ? { userId: user._id } : 'skip'
-  );
+  const regs = useQuery(api.registrations.listByUser, user ? { userId: user._id as any } : 'skip');
 
-  useEffect(() => { if (!user) router.replace('/login'); }, [user]);
-  if (!user) return null;
+  if (!regs) return <LoadingScreen />;
 
-  const activeRegs = registrations?.filter(r => r.status === 'registered') ?? [];
-  const totalSKS = activeRegs.reduce((sum, r) => sum + (r.course?.credits ?? 0), 0);
-  const sksFee = totalSKS * COST_PER_SKS;
-  const total = BASE_SPP + sksFee + LAB_FEE + STUDENT_ACTIVITY_FEE + INSURANCE_FEE;
+  const active   = regs.filter(r => r.status === 'registered');
+  const totalSKS = active.reduce((s, r) => s + (r.course?.credits ?? 0), 0);
+  const sksFee   = totalSKS * COST_PER_SKS;
+  const total    = BASE_SPP + sksFee + LAB + KEMAHASISWAAN + ASURANSI;
 
   const items = [
-    {
-      label: 'SPP Tetap',
-      desc: 'Biaya pokok per semester',
-      value: BASE_SPP,
-      icon: 'school-outline' as const,
-      color: Colors.primary,
-    },
-    {
-      label: 'Biaya SKS',
-      desc: `${totalSKS} SKS × ${formatRupiah(COST_PER_SKS)}`,
-      value: sksFee,
-      icon: 'book-outline' as const,
-      color: '#1A5C42',
-    },
-    {
-      label: 'Biaya Laboratorium',
-      desc: 'Penggunaan fasilitas lab',
-      value: LAB_FEE,
-      icon: 'flask-outline' as const,
-      color: '#553C9A',
-    },
-    {
-      label: 'Kemahasiswaan',
-      desc: 'Kegiatan dan organisasi',
-      value: STUDENT_ACTIVITY_FEE,
-      icon: 'people-outline' as const,
-      color: '#285E61',
-    },
-    {
-      label: 'Asuransi Mahasiswa',
-      desc: 'Jaminan keselamatan',
-      value: INSURANCE_FEE,
-      icon: 'shield-checkmark-outline' as const,
-      color: '#744210',
-    },
+    { label: 'SPP Tetap',       desc: 'Per semester',        amount: BASE_SPP,      icon: 'school-outline' as const },
+    { label: `Biaya SKS`,       desc: `${totalSKS} SKS × Rp 150.000`, amount: sksFee, icon: 'book-outline' as const },
+    { label: 'Biaya Lab',       desc: 'Praktikum & fasilitas', amount: LAB,          icon: 'flask-outline' as const },
+    { label: 'Kemahasiswaan',   desc: 'Kegiatan dan organisasi', amount: KEMAHASISWAAN, icon: 'people-outline' as const },
+    { label: 'Asuransi',        desc: 'Perlindungan mahasiswa', amount: ASURANSI,    icon: 'shield-checkmark-outline' as const },
   ];
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primaryDark} />
+    <View style={s.root}>
+      <PageHeader title="Biaya Semester" subtitle="Rincian tagihan akademik Anda" />
 
-      <LinearGradient
-        colors={[Colors.primaryDark, Colors.primary]}
-        style={styles.header}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.headerDecor} />
-        <Text style={styles.headerTitle}>Estimasi Biaya Semester</Text>
-        <Text style={styles.headerSub}>Semester Genap 2024/2025</Text>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Total card in header */}
-        <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>TOTAL ESTIMASI</Text>
-          <Text style={styles.totalValue}>{formatRupiah(total)}</Text>
-          <Text style={styles.totalSub}>{totalSKS} SKS terdaftar · {activeRegs.length} mata kuliah</Text>
-        </View>
-      </LinearGradient>
-
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Rincian Biaya</Text>
-
-        {items.map((item, i) => (
-          <View key={i} style={styles.costCard}>
-            <View style={[styles.costIcon, { backgroundColor: item.color + '18' }]}>
-              <Ionicons name={item.icon} size={22} color={item.color} />
+        {/* Total card */}
+        <LinearGradient colors={[C.primary, C.primaryMid]} style={s.totalCard} start={{x:0,y:0}} end={{x:1,y:1}}>
+          <View style={s.totalDecor} />
+          <Text style={s.totalLabel}>Total Tagihan Semester Ini</Text>
+          <Text style={s.totalAmount}>{fmt(total)}</Text>
+          <View style={s.totalMeta}>
+            <View style={s.metaChip}>
+              <Ionicons name="book-outline" size={12} color="rgba(255,255,255,0.8)" />
+              <Text style={s.metaTxt}>{totalSKS} SKS Aktif</Text>
             </View>
-            <View style={styles.costInfo}>
-              <Text style={styles.costLabel}>{item.label}</Text>
-              <Text style={styles.costDesc}>{item.desc}</Text>
+            <View style={s.metaChip}>
+              <Ionicons name="calendar-outline" size={12} color="rgba(255,255,255,0.8)" />
+              <Text style={s.metaTxt}>2024/2025 Ganjil</Text>
             </View>
-            <Text style={styles.costValue}>{formatRupiah(item.value)}</Text>
           </View>
-        ))}
-
-        {/* Divider */}
-        <View style={styles.divider} />
-
-        {/* Total row */}
-        <LinearGradient
-          colors={[Colors.primaryDark, Colors.primary]}
-          style={styles.totalRow}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-        >
-          <Text style={styles.totalRowLabel}>Total Biaya Semester</Text>
-          <Text style={styles.totalRowValue}>{formatRupiah(total)}</Text>
         </LinearGradient>
 
-        {/* Disclaimer */}
-        <View style={styles.disclaimer}>
-          <Ionicons name="information-circle-outline" size={16} color={Colors.warning} />
-          <Text style={styles.disclaimerText}>
-            Ini adalah estimasi biaya. Nominal final dapat berbeda sesuai kebijakan universitas.
-            Pembayaran dilakukan melalui bank yang ditunjuk.
-          </Text>
+        {/* Breakdown */}
+        <View style={s.section}>
+          <View style={s.secHeader}>
+            <View style={s.goldBar} />
+            <Text style={s.secTitle}>Rincian Biaya</Text>
+          </View>
+          <View style={s.breakdown}>
+            {items.map((item, i) => (
+              <View key={i} style={[s.row, i < items.length - 1 && s.rowBorder]}>
+                <View style={s.rowIcon}>
+                  <Ionicons name={item.icon} size={16} color={C.primaryMid} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowLabel}>{item.label}</Text>
+                  <Text style={s.rowDesc}>{item.desc}</Text>
+                </View>
+                <Text style={s.rowAmount}>{fmt(item.amount)}</Text>
+              </View>
+            ))}
+            {/* Total row */}
+            <LinearGradient colors={[C.primary, C.primaryMid]} style={s.totalRow} start={{x:0,y:0}} end={{x:1,y:0}}>
+              <Text style={s.totalRowLabel}>Total Keseluruhan</Text>
+              <Text style={s.totalRowAmount}>{fmt(total)}</Text>
+            </LinearGradient>
+          </View>
         </View>
 
         {/* Payment methods */}
-        <Text style={styles.sectionTitle}>Metode Pembayaran</Text>
-        {[
-          { bank: 'BNI', no: '123-456-7890', name: 'Universitas Klabat' },
-          { bank: 'BRI', no: '098-765-4321', name: 'Universitas Klabat' },
-          { bank: 'Mandiri', no: '147-258-3690', name: 'Universitas Klabat' },
-        ].map((p, i) => (
-          <View key={i} style={styles.paymentCard}>
-            <View style={styles.bankBadge}>
-              <Text style={styles.bankText}>{p.bank}</Text>
-            </View>
-            <View>
-              <Text style={styles.paymentNo}>{p.no}</Text>
-              <Text style={styles.paymentName}>a/n {p.name}</Text>
-            </View>
+        <View style={s.section}>
+          <View style={s.secHeader}>
+            <View style={s.goldBar} />
+            <Text style={s.secTitle}>Metode Pembayaran</Text>
           </View>
-        ))}
+          <View style={s.payMethods}>
+            {['BNI', 'BRI', 'Mandiri'].map(bank => (
+              <View key={bank} style={s.payChip}>
+                <Ionicons name="card-outline" size={16} color={C.primaryMid} />
+                <Text style={s.payTxt}>{bank}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
 
-        <View style={{ height: 40 }} />
+        {/* Disclaimer */}
+        <View style={s.disclaimer}>
+          <Ionicons name="information-circle-outline" size={15} color={C.textMuted} />
+          <Text style={s.disclaimerTxt}>
+            Biaya dapat berubah sesuai kebijakan universitas. Hubungi Bagian Keuangan untuk informasi lebih lanjut.
+          </Text>
+        </View>
+
+        <View style={{ height: 24 }} />
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: {
-    paddingTop: (StatusBar.currentHeight || 44) + 14,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    overflow: 'hidden',
-  },
-  headerDecor: {
-    position: 'absolute', width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(232,184,75,0.1)', top: -70, right: -50,
-  },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: -0.4 },
-  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 3, marginBottom: 18 },
-  totalCard: {
-    backgroundColor: 'rgba(255,255,255,0.13)',
-    borderRadius: 16, padding: 18,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-  },
-  totalLabel: {
-    fontSize: 10, color: Colors.accentLight, fontWeight: '800',
-    letterSpacing: 1.2,
-  },
-  totalValue: { fontSize: 32, fontWeight: '900', color: '#FFFFFF', marginTop: 4, letterSpacing: -1 },
-  totalSub: { fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4 },
-  body: { flex: 1, padding: 16 },
-  sectionTitle: {
-    fontSize: 15, fontWeight: '800', color: Colors.primaryDark,
-    marginBottom: 12, marginTop: 8, letterSpacing: -0.3,
-  },
-  costCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    marginBottom: 8,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
-    borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  costIcon: {
-    width: 44, height: 44, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  costInfo: { flex: 1 },
-  costLabel: { fontSize: 14, fontWeight: '700', color: Colors.primaryDark },
-  costDesc: { fontSize: 11, color: Colors.textLight, marginTop: 2 },
-  costValue: { fontSize: 14, fontWeight: '800', color: Colors.primaryDark },
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 16 },
-  totalRow: {
-    borderRadius: 14, padding: 18,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 16,
-  },
-  totalRowLabel: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.8)' },
-  totalRowValue: { fontSize: 18, fontWeight: '900', color: Colors.accent },
-  disclaimer: {
-    backgroundColor: Colors.warningLight, borderRadius: 12, padding: 14,
-    flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 24,
-    borderWidth: 1, borderColor: '#FBD38D',
-  },
-  disclaimerText: { flex: 1, fontSize: 12, color: Colors.warning, lineHeight: 18 },
-  paymentCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    marginBottom: 8, borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  bankBadge: {
-    backgroundColor: Colors.primary, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 8,
-  },
-  bankText: { fontSize: 13, fontWeight: '800', color: Colors.accent },
-  paymentNo: { fontSize: 15, fontWeight: '700', color: Colors.primaryDark },
-  paymentName: { fontSize: 11, color: Colors.textLight, marginTop: 2 },
+const s = StyleSheet.create({
+  root:          { flex: 1, backgroundColor: C.background },
+  scroll:        { padding: 16 },
+  totalCard:     { borderRadius: 20, padding: 22, marginBottom: 20, overflow: 'hidden' },
+  totalDecor:    { position:'absolute', width:150, height:150, borderRadius:75, backgroundColor:'rgba(212,160,23,0.12)', top:-50, right:-30 },
+  totalLabel:    { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 6 },
+  totalAmount:   { fontSize: 28, fontWeight: '900', color: '#FFF', letterSpacing: -0.5 },
+  totalMeta:     { flexDirection: 'row', gap: 10, marginTop: 14 },
+  metaChip:      { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  metaTxt:       { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
+  section:       { marginBottom: 18 },
+  secHeader:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  goldBar:       { width: 3, height: 18, borderRadius: 2, backgroundColor: C.accentBright },
+  secTitle:      { fontSize: 14, fontWeight: '800', color: C.text },
+  breakdown:     { backgroundColor: C.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.borderLight },
+  row:           { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  rowBorder:     { borderBottomWidth: 1, borderBottomColor: C.borderLight },
+  rowIcon:       { width: 36, height: 36, borderRadius: 10, backgroundColor: C.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  rowLabel:      { fontSize: 13, fontWeight: '700', color: C.text },
+  rowDesc:       { fontSize: 11, color: C.textMuted, marginTop: 1 },
+  rowAmount:     { fontSize: 13, fontWeight: '700', color: C.text },
+  totalRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
+  totalRowLabel: { fontSize: 14, fontWeight: '800', color: '#FFF' },
+  totalRowAmount:{ fontSize: 16, fontWeight: '900', color: '#FFF' },
+  payMethods:    { flexDirection: 'row', gap: 10 },
+  payChip:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.surface, borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: C.borderLight },
+  payTxt:        { fontSize: 13, fontWeight: '700', color: C.text },
+  disclaimer:    { flexDirection: 'row', gap: 8, backgroundColor: C.accentLight, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.accentBright + '30', alignItems: 'flex-start' },
+  disclaimerTxt: { fontSize: 11, color: C.textSub, flex: 1, lineHeight: 17 },
 });

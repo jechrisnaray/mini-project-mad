@@ -1,228 +1,162 @@
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, StatusBar, Alert, KeyboardAvoidingView,
-  Platform, ScrollView, Dimensions,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  StatusBar, Alert, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import Colors from '../constants/Colors';
-
-const { width } = Dimensions.get('window');
+import { PrimaryButton } from '../components/ui';
+import C from '../constants/Colors';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [showPw,   setShowPw]   = useState(false);
+  const [loading,  setLoading]  = useState(false);
 
-  const { login } = useAuth();
-  const seedUsers = useMutation(api.users.seedUsers);
-  const loginUser = useMutation(api.users.login);
+  const { login }  = useAuth();
+  const seedUsers  = useMutation(api.users.seedUsers);
+  const loginMut   = useMutation(api.users.login);
 
-  useEffect(() => { seedUsers(); }, []);
+  // Auto-seed saat pertama kali
+  useState(() => { seedUsers().catch(() => {}); });
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert('Peringatan', 'Username dan password harus diisi.');
-      return;
+      Alert.alert('Peringatan', 'Username dan password wajib diisi.'); return;
     }
     setLoading(true);
     try {
-      const user = await loginUser({ username, password });
-      await login(user);
+      const u = await loginMut({ username: username.trim(), password });
+      await login(u as any);
       router.replace('/dashboard');
-    } catch (error: any) {
-      Alert.alert('Login Gagal', error?.message || 'Terjadi kesalahan');
+    } catch (e: any) {
+      Alert.alert('Login Gagal', e?.message ?? 'Username atau password salah.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <LinearGradient
-        colors={[Colors.primaryDark, Colors.primary, Colors.primaryLight]}
-        style={styles.container}
+        colors={[C.primary, C.primaryMid, '#3A8A5C']}
+        style={s.bg}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
         <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-        {/* Decorative circles */}
-        <View style={styles.circle1} />
-        <View style={styles.circle2} />
+        {/* Decorative gold circles */}
+        <View style={s.goldCircle1} />
+        <View style={s.goldCircle2} />
+        <View style={s.leafShape} />
 
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Logo */}
-          <View style={styles.logoArea}>
-            <View style={styles.logoBadge}>
-              <Ionicons name="school" size={36} color={Colors.accent} />
+        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+
+          {/* Logo area */}
+          <View style={s.logoArea}>
+            <View style={s.logoBox}>
+              <Ionicons name="school" size={40} color={C.accentBright} />
             </View>
-            <Text style={styles.university}>UNIVERSITAS KLABAT</Text>
-            <Text style={styles.systemName}>Sistem Informasi Universitas</Text>
+            <Text style={s.logoText}>SIU</Text>
+            <Text style={s.logoSub}>Universitas Klabat</Text>
+            {/* Gold divider */}
+            <View style={s.goldDivider} />
           </View>
 
           {/* Card */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Masuk</Text>
-            <Text style={styles.cardSub}>Gunakan akun SIU Anda</Text>
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Selamat Datang</Text>
+            <Text style={s.cardSub}>Masuk dengan akun akademik Anda</Text>
 
             {/* Username */}
-            <View style={styles.inputWrap}>
-              <Ionicons name="person-outline" size={18} color={Colors.textLight} style={styles.inputIcon} />
+            <Text style={s.label}>Username</Text>
+            <View style={s.inputRow}>
+              <Ionicons name="person-outline" size={17} color={C.textMuted} style={s.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="Username"
-                placeholderTextColor={Colors.textLight}
+                style={s.input}
+                placeholder="Masukkan username"
+                placeholderTextColor={C.textMuted}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
 
             {/* Password */}
-            <View style={styles.inputWrap}>
-              <Ionicons name="lock-closed-outline" size={18} color={Colors.textLight} style={styles.inputIcon} />
+            <Text style={s.label}>Password</Text>
+            <View style={s.inputRow}>
+              <Ionicons name="lock-closed-outline" size={17} color={C.textMuted} style={s.inputIcon} />
               <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Password"
-                placeholderTextColor={Colors.textLight}
-                secureTextEntry={!showPassword}
+                style={[s.input, { flex: 1 }]}
+                placeholder="Masukkan password"
+                placeholderTextColor={C.textMuted}
+                secureTextEntry={!showPw}
                 value={password}
                 onChangeText={setPassword}
               />
-              <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.eyeBtn}>
-                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textLight} />
+              <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ padding: 6 }}>
+                <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={17} color={C.textMuted} />
               </TouchableOpacity>
             </View>
 
-            {/* Login button */}
-            <TouchableOpacity
-              style={[styles.btnLogin, loading && { opacity: 0.7 }]}
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={[Colors.primary, Colors.primaryDark]}
-                style={styles.btnGradient}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              >
-                {loading
-                  ? <Text style={styles.btnText}>Memuat...</Text>
-                  : <Text style={styles.btnText}>MASUK</Text>
-                }
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>atau</Text>
-              <View style={styles.dividerLine} />
+            <View style={{ marginTop: 6 }}>
+              <PrimaryButton label="Masuk" onPress={handleLogin} loading={loading} icon="log-in-outline" />
             </View>
 
-            {/* Register button */}
-            <TouchableOpacity
-              style={styles.btnRegister}
-              onPress={() => router.push('/register')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.btnRegisterText}>BUAT AKUN BARU</Text>
+            {/* Gold accent line */}
+            <View style={s.orRow}>
+              <View style={s.orLine} />
+              <Text style={s.orText}>atau</Text>
+              <View style={s.orLine} />
+            </View>
+
+            <TouchableOpacity style={s.regBtn} onPress={() => router.push('/register' as any)}>
+              <Text style={s.regTxt}>
+                Belum punya akun?{' '}
+                <Text style={{ color: C.primary, fontWeight: '800' }}>Daftar di sini</Text>
+              </Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.footer}>© 2025 Universitas Klabat · SIU v1.0</Text>
+          {/* Footer */}
+          <Text style={s.footer}>© 2025 Universitas Klabat · SIU v1.0</Text>
+
         </ScrollView>
       </LinearGradient>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-    paddingTop: (StatusBar.currentHeight || 44) + 20,
-  },
-  circle1: {
-    position: 'absolute', width: 300, height: 300,
-    borderRadius: 150, backgroundColor: 'rgba(232,184,75,0.08)',
-    top: -80, right: -80,
-  },
-  circle2: {
-    position: 'absolute', width: 200, height: 200,
-    borderRadius: 100, backgroundColor: 'rgba(255,255,255,0.05)',
-    bottom: 60, left: -60,
-  },
-  logoArea: { alignItems: 'center', marginBottom: 32 },
-  logoBadge: {
-    width: 80, height: 80, borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 14,
-    borderWidth: 1, borderColor: 'rgba(232,184,75,0.4)',
-  },
-  university: {
-    fontSize: 20, fontWeight: '800', color: '#FFFFFF',
-    letterSpacing: 0.5, textAlign: 'center',
-  },
-  systemName: { fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 4 },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28, padding: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2, shadowRadius: 24,
-    elevation: 12,
-  },
-  cardTitle: { fontSize: 24, fontWeight: '800', color: Colors.primaryDark, letterSpacing: -0.5 },
-  cardSub: { fontSize: 13, color: Colors.textLight, marginTop: 4, marginBottom: 24 },
-  inputWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.background,
-    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.border,
-    marginBottom: 14, paddingHorizontal: 14,
-  },
-  inputIcon: { marginRight: 10 },
-  input: {
-    flex: 1, paddingVertical: 14,
-    fontSize: 15, color: Colors.text,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
-  eyeBtn: { padding: 6 },
-  btnLogin: {
-    borderRadius: 14, overflow: 'hidden',
-    marginTop: 6,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 10,
-    elevation: 6,
-  },
-  btnGradient: { paddingVertical: 16, alignItems: 'center' },
-  btnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
-  dividerRow: {
-    flexDirection: 'row', alignItems: 'center',
-    marginVertical: 18,
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
-  dividerText: { marginHorizontal: 12, fontSize: 13, color: Colors.textLight },
-  btnRegister: {
-    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.primary,
-    paddingVertical: 15, alignItems: 'center',
-  },
-  btnRegisterText: { color: Colors.primary, fontSize: 15, fontWeight: '700', letterSpacing: 0.5 },
-  footer: { textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 28 },
+const PT = (StatusBar.currentHeight ?? 44) + 24;
+const s = StyleSheet.create({
+  bg:          { flex: 1 },
+  goldCircle1: { position: 'absolute', width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(212,160,23,0.10)', top: -80, right: -60 },
+  goldCircle2: { position: 'absolute', width: 120, height: 120, borderRadius: 60,  backgroundColor: 'rgba(212,160,23,0.07)', bottom: 120, left: -40 },
+  leafShape:   { position: 'absolute', width: 80,  height: 80,  borderRadius: 40,  backgroundColor: 'rgba(255,255,255,0.05)', top: 200, left: 20 },
+  scroll:      { flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: PT },
+  logoArea:    { alignItems: 'center', marginBottom: 28 },
+  logoBox:     { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1.5, borderColor: 'rgba(212,160,23,0.4)' },
+  logoText:    { fontSize: 30, fontWeight: '900', color: '#FFF', letterSpacing: 4 },
+  logoSub:     { fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 4, letterSpacing: 0.5 },
+  goldDivider: { width: 50, height: 2, backgroundColor: C.accentBright, borderRadius: 2, marginTop: 14, opacity: 0.8 },
+  card:        { backgroundColor: C.surface, borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.18, shadowRadius: 28, elevation: 12 },
+  cardTitle:   { fontSize: 20, fontWeight: '800', color: C.text, marginBottom: 4 },
+  cardSub:     { fontSize: 12, color: C.textMuted, marginBottom: 20 },
+  label:       { fontSize: 12, fontWeight: '700', color: C.textSub, marginBottom: 6 },
+  inputRow:    { flexDirection: 'row', alignItems: 'center', backgroundColor: C.background, borderRadius: 13, borderWidth: 1.5, borderColor: C.border, marginBottom: 14, paddingHorizontal: 12 },
+  inputIcon:   { marginRight: 8 },
+  input:       { flex: 1, paddingVertical: 13, fontSize: 15, color: C.text },
+  orRow:       { flexDirection: 'row', alignItems: 'center', marginVertical: 16, gap: 10 },
+  orLine:      { flex: 1, height: 1, backgroundColor: C.borderLight },
+  orText:      { fontSize: 12, color: C.textMuted },
+  regBtn:      { alignItems: 'center' },
+  regTxt:      { fontSize: 13, color: C.textSub },
+  footer:      { textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 24 },
 });

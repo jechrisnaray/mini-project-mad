@@ -1,202 +1,160 @@
 import {
-  View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Alert, Dimensions, StatusBar,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Dimensions, StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useAuth } from '../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import Colors from '../constants/Colors';
 import { useEffect } from 'react';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
+import C from '../constants/Colors';
 
 const { width } = Dimensions.get('window');
-const CARD_SIZE = (width - 40 - 32) / 4;
+const MCOL = (width - 36 - 24) / 4;
 
-type MenuItem = {
-  name: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  route: string;
-  color: string;
-  roles: string[];
-};
-
-const menus: MenuItem[] = [
-  { name: 'Registrasi MK', icon: 'clipboard-outline',      route: '/registration',       color: '#1E3A72', roles: ['student'] },
-  { name: 'Add / Drop',    icon: 'swap-horizontal-outline', route: '/add-drop',           color: '#1A5C42', roles: ['student'] },
-  { name: 'Drop Subject',  icon: 'trash-outline',           route: '/drop-subject',       color: '#7A1C2C', roles: ['student'] },
-  { name: 'Lihat Nilai',   icon: 'school-outline',          route: '/view-grade',         color: '#5C3A0A', roles: ['student', 'admin'] },
-  { name: 'Jadwal',        icon: 'calendar-outline',        route: '/view-schedule',      color: '#1A3A6C', roles: ['student'] },
-  { name: 'Eval. Dosen',   icon: 'star-outline',            route: '/teacher-evaluation', color: '#3A1C7A', roles: ['student'] },
-  { name: 'Ospek & KKN',   icon: 'people-outline',          route: '/ospek-kkn',          color: '#1A4A4A', roles: ['student'] },
-  { name: 'Biaya',         icon: 'cash-outline',            route: '/semester-cost',      color: '#5C1A3A', roles: ['student'] },
-  { name: 'Input Nilai',   icon: 'create-outline',          route: '/input-grade',        color: '#1E3A72', roles: ['admin'] },
+type Menu = { name: string; icon: keyof typeof Ionicons.glyphMap; route: string; color: string; roles: string[] };
+const MENUS: Menu[] = [
+  { name: 'Registrasi',  icon: 'clipboard-outline',      route: '/registration',       color: C.primaryMid,  roles: ['student'] },
+  { name: 'Add/Drop',    icon: 'swap-horizontal-outline', route: '/add-drop',           color: '#0F766E',     roles: ['student'] },
+  { name: 'Drop MK',     icon: 'trash-outline',           route: '/drop-subject',       color: C.error,       roles: ['student'] },
+  { name: 'Nilai',       icon: 'school-outline',          route: '/view-grade',         color: C.accent,      roles: ['student','admin'] },
+  { name: 'Jadwal',      icon: 'calendar-outline',        route: '/view-schedule',      color: C.primary,     roles: ['student'] },
+  { name: 'Eval. Dosen', icon: 'star-outline',            route: '/teacher-evaluation', color: '#7C3AED',     roles: ['student'] },
+  { name: 'Ospek/KKN',  icon: 'people-outline',           route: '/ospek-kkn',          color: '#065F46',     roles: ['student'] },
+  { name: 'Biaya SMT',   icon: 'cash-outline',            route: '/semester-cost',      color: '#9D174D',     roles: ['student'] },
+  { name: 'Input Nilai', icon: 'create-outline',          route: '/input-grade',        color: C.primary,     roles: ['admin'] },
 ];
+
+const GW: Record<string, number> = { A:4,'A-':3.7,'B+':3.3,B:3,'B-':2.7,'C+':2.3,C:2,D:1,E:0 };
+
+const ANN_STYLE: Record<string, {bg:string;c:string;icon:keyof typeof Ionicons.glyphMap}> = {
+  yellow: { bg: C.warningBg,  c: C.warning, icon: 'warning-outline' },
+  blue:   { bg: C.infoBg,     c: C.info,    icon: 'information-circle-outline' },
+  red:    { bg: C.errorBg,    c: C.error,   icon: 'alert-circle-outline' },
+  green:  { bg: C.successBg,  c: C.success, icon: 'checkmark-circle-outline' },
+};
 
 export default function DashboardScreen() {
   const { user, isLoading, logout } = useAuth();
 
-  const registrations = useQuery(
-    api.registrations.listByUser,
-    user ? { userId: user._id as any } : 'skip'
-  );
-  const grades = useQuery(
-    api.grades.listByUser,
-    user ? { userId: user._id as any } : 'skip'
-  );
-  const schedules = useQuery(
-    api.scheadules.listByUser,
-    user ? { userId: user._id as any } : 'skip'
-  );
-  // ✅ Pengumuman dari Convex — bukan hardcode
-  const announcements = useQuery(api.announcements.list);
+  const regs   = useQuery(api.registrations.listByUser, user ? { userId: user._id as any } : 'skip');
+  const grades = useQuery(api.grades.listByUser,         user ? { userId: user._id as any } : 'skip');
+  const scheds = useQuery(api.scheadules.listByUser,     user ? { userId: user._id as any } : 'skip');
+  const anns   = useQuery(api.announcements.list);
+  const seedAnn = useMutation(api.announcements.seed);
 
-  useEffect(() => {
-    if (!isLoading && !user) router.replace('/login');
-  }, [user, isLoading]);
-
+  useEffect(() => { seedAnn().catch(() => {}); }, []);
+  useEffect(() => { if (!isLoading && !user) router.replace('/login'); }, [user, isLoading]);
   if (isLoading || !user) return null;
 
-  const filteredMenus = menus.filter((m) => m.roles.includes(user.role));
-  const registeredCount = registrations?.filter((r) => r.status === 'registered').length ?? 0;
-  const totalSKS = registrations
-    ?.filter((r) => r.status === 'registered')
-    .reduce((sum, r) => sum + (r.course?.credits ?? 0), 0) ?? 0;
+  // Stats
+  const active   = regs?.filter(r => r.status === 'registered') ?? [];
+  const totalSKS = active.reduce((s, r) => s + (r.course?.credits ?? 0), 0);
 
   let ipk = '—';
-  if (grades && grades.length > 0) {
-    const gradeMap: Record<string, number> = {
-      'A': 4.0, 'A-': 3.7, 'B+': 3.3, 'B': 3.0,
-      'B-': 2.7, 'C+': 2.3, 'C': 2.0, 'D': 1.0, 'E': 0.0,
-    };
-    const totalBobot = grades.reduce(
-      (sum, g) => sum + (gradeMap[g.grade] ?? 0) * (g.course?.credits ?? 0), 0
-    );
-    const totalSksGraded = grades.reduce((sum, g) => sum + (g.course?.credits ?? 0), 0);
-    if (totalSksGraded > 0) ipk = (totalBobot / totalSksGraded).toFixed(2);
+  if (grades?.length) {
+    const wb = grades.reduce((s, g) => s + (GW[g.grade] ?? 0) * (g.course?.credits ?? 0), 0);
+    const ws = grades.reduce((s, g) => s + (g.course?.credits ?? 0), 0);
+    if (ws > 0) ipk = (wb / ws).toFixed(2);
   }
 
-  const daysId = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-  const todayName = daysId[new Date().getDay()];
-  const todayCount = schedules?.filter((s) => s.day === todayName).length ?? 0;
+  const today = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][new Date().getDay()];
+  const todayN = scheds?.filter(s => s.day === today).length ?? 0;
 
-  const handleLogout = () => {
-    Alert.alert('Konfirmasi', 'Apakah Anda yakin ingin keluar?', [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Keluar', style: 'destructive',
-        onPress: async () => { await logout(); router.replace('/login'); },
-      },
-    ]);
-  };
+  const menus = MENUS.filter(m => m.roles.includes(user.role));
+  const init  = (n: string) => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-  const getInitials = (name: string) =>
-    name.split(' ').map((w) => w[0]).join('').substring(0, 2).toUpperCase();
-
-  // Warna badge pengumuman
-  const badgeStyle = (color: string) => {
-    const map: Record<string, { bg: string; iconColor: string; textColor: string; iconName: keyof typeof Ionicons.glyphMap }> = {
-      yellow: { bg: Colors.warningLight,  iconColor: Colors.warning, textColor: Colors.warning, iconName: 'warning-outline' },
-      blue:   { bg: Colors.primaryLight,  iconColor: Colors.primary, textColor: Colors.primary, iconName: 'information-circle-outline' },
-      red:    { bg: Colors.errorLight,    iconColor: Colors.error,   textColor: Colors.error,   iconName: 'alert-circle-outline' },
-      green:  { bg: Colors.successLight,  iconColor: Colors.success, textColor: Colors.success, iconName: 'checkmark-circle-outline' },
-    };
-    return map[color] ?? map.blue;
-  };
+  const handleLogout = () => Alert.alert('Konfirmasi', 'Yakin ingin keluar?', [
+    { text: 'Batal', style: 'cancel' },
+    { text: 'Keluar', style: 'destructive', onPress: async () => { await logout(); router.replace('/login'); } },
+  ]);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primaryDark} />
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor={C.primary} />
 
-      {/* ── Header gradient ── */}
-      <LinearGradient
-        colors={[Colors.primaryDark, Colors.primary]}
-        style={styles.header}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.headerDecor} />
+      {/* ── Header ─────────────────────────────────── */}
+      <LinearGradient colors={[C.primary, C.primaryMid]} style={s.header} start={{x:0,y:0}} end={{x:1,y:1}}>
+        <View style={s.hdecor1} />
+        <View style={s.hdecor2} />
 
-        <View style={styles.headerTop}>
-          <View style={styles.headerLeft}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getInitials(user.name)}</Text>
-            </View>
-            <View>
-              <Text style={styles.greeting}>Selamat datang 👋</Text>
-              <Text style={styles.userName}>{user.name}</Text>
-              <View style={styles.rolePill}>
-                <Text style={styles.roleText}>
-                  {user.role === 'admin' ? '⚙ Administrator' : '🎓 Mahasiswa'}
-                </Text>
-              </View>
+        <View style={s.hrow}>
+          <View style={s.avatarBox}>
+            <Text style={s.avatarTxt}>{init(user.name)}</Text>
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.hWelcome}>Selamat datang 👋</Text>
+            <Text style={s.hName}>{user.name}</Text>
+            <View style={s.rolePill}>
+              <Text style={s.roleTxt}>{user.role === 'admin' ? '⚙ Administrator' : '🎓 Mahasiswa'}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-            <Ionicons name="log-out-outline" size={22} color="rgba(255,255,255,0.8)" />
+          <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={20} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
         </View>
 
-        {/* Stats — student only */}
+        {/* Stats strip (student only) */}
         {user.role === 'student' && (
-          <View style={styles.statsRow}>
+          <View style={s.statsBox}>
             {[
-              { val: String(registeredCount), lbl: 'MK Aktif' },
-              { val: String(totalSKS),        lbl: 'Total SKS' },
-              { val: ipk,                     lbl: 'IPK' },
-              { val: String(todayCount),      lbl: 'Hari Ini' },
-            ].map((s, i, arr) => (
-              <View key={i} style={styles.statItem}>
-                <Text style={styles.statVal}>{s.val}</Text>
-                <Text style={styles.statLbl}>{s.lbl}</Text>
-                {i < arr.length - 1 && <View style={styles.statDivider} />}
+              { v: active.length, l: 'MK Aktif' },
+              { v: totalSKS,      l: 'Total SKS' },
+              { v: ipk,           l: 'IPK' },
+              { v: todayN,        l: 'Hari Ini' },
+            ].map((st, i, arr) => (
+              <View key={i} style={s.statItem}>
+                <Text style={s.statVal}>{st.v}</Text>
+                <Text style={s.statLbl}>{st.l}</Text>
+                {i < arr.length - 1 && <View style={s.statDivider} />}
               </View>
             ))}
           </View>
         )}
       </LinearGradient>
 
-      {/* ── Body ── */}
-      <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView style={s.body} showsVerticalScrollIndicator={false}>
 
-        {/* Pengumuman dari Convex */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pengumuman</Text>
-          {!announcements ? (
-            <Text style={styles.hint}>Memuat pengumuman...</Text>
-          ) : announcements.length === 0 ? (
-            <Text style={styles.hint}>Tidak ada pengumuman.</Text>
-          ) : announcements.map((ann) => {
-            const bs = badgeStyle(ann.color);
-            return (
-              <View key={ann._id} style={styles.announceCard}>
-                <View style={[styles.announceBadge, { backgroundColor: bs.bg }]}>
-                  <Ionicons name={bs.iconName} size={16} color={bs.iconColor} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.announceTitle, { color: bs.textColor }]}>{ann.title}</Text>
-                  <Text style={styles.announceMsg}>{ann.message}</Text>
-                </View>
-              </View>
-            );
-          })}
+        {/* ── Pengumuman (dari Convex) ─────────────── */}
+        <View style={s.section}>
+          <View style={s.secHeader}>
+            <View style={s.goldBar} />
+            <Text style={s.secTitle}>Pengumuman Kampus</Text>
+          </View>
+          {!anns
+            ? <Text style={s.hint}>Memuat pengumuman...</Text>
+            : anns.length === 0
+              ? <Text style={s.hint}>Tidak ada pengumuman aktif.</Text>
+              : anns.map(a => {
+                  const st = ANN_STYLE[a.color] ?? ANN_STYLE.blue;
+                  return (
+                    <View key={a._id} style={s.annCard}>
+                      <View style={[s.annIcon, { backgroundColor: st.bg }]}>
+                        <Ionicons name={st.icon} size={16} color={st.c} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.annTitle, { color: st.c }]}>{a.title}</Text>
+                        <Text style={s.annMsg}>{a.message}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
         </View>
 
-        {/* Grid menu */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Menu Layanan</Text>
-          <View style={styles.menuGrid}>
-            {filteredMenus.map((menu, i) => (
-              <TouchableOpacity
-                key={i}
-                style={styles.menuCard}
-                onPress={() => router.push(menu.route as any)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.menuIcon, { backgroundColor: menu.color }]}>
-                  <Ionicons name={menu.icon} size={26} color={Colors.accent} />
+        {/* ── Menu Grid ────────────────────────────── */}
+        <View style={s.section}>
+          <View style={s.secHeader}>
+            <View style={s.goldBar} />
+            <Text style={s.secTitle}>Layanan Akademik</Text>
+          </View>
+          <View style={s.grid}>
+            {menus.map((m, i) => (
+              <TouchableOpacity key={i} style={s.menuCard} onPress={() => router.push(m.route as any)} activeOpacity={0.75}>
+                <View style={[s.menuIcon, { backgroundColor: m.color }]}>
+                  <Ionicons name={m.icon} size={22} color={C.accentBright} />
                 </View>
-                <Text style={styles.menuLabel}>{menu.name}</Text>
+                <Text style={s.menuLbl}>{m.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -208,96 +166,36 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-
-  header: {
-    paddingTop: (StatusBar.currentHeight || 44) + 10,
-    paddingBottom: 22,
-    paddingHorizontal: 20,
-    overflow: 'hidden',
-  },
-  headerDecor: {
-    position: 'absolute', width: 220, height: 220, borderRadius: 110,
-    backgroundColor: 'rgba(240,192,64,0.08)', top: -80, right: -60,
-  },
-  headerTop: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    justifyContent: 'space-between', marginBottom: 18,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  avatar: {
-    width: 50, height: 50, borderRadius: 15,
-    backgroundColor: Colors.accent,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText: { fontSize: 17, fontWeight: '800', color: Colors.primaryDark },
-  greeting:   { fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 2 },
-  userName:   { fontSize: 17, fontWeight: '800', color: '#FFF', letterSpacing: -0.3 },
-  rolePill: {
-    marginTop: 4, backgroundColor: 'rgba(240,192,64,0.2)',
-    borderRadius: 20, paddingHorizontal: 9, paddingVertical: 2,
-    alignSelf: 'flex-start',
-    borderWidth: 1, borderColor: 'rgba(240,192,64,0.3)',
-  },
-  roleText: { fontSize: 10, color: Colors.accentLight, fontWeight: '600' },
-  logoutBtn: {
-    width: 38, height: 38, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  statsRow: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16, padding: 14, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-  },
-  statItem:    { flex: 1, alignItems: 'center', position: 'relative' },
-  statVal:     { fontSize: 20, fontWeight: '800', color: '#FFF' },
-  statLbl:     { fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 2, fontWeight: '500' },
-  statDivider: {
-    position: 'absolute', right: 0, top: 4,
-    width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-
-  body:         { flex: 1 },
-  section:      { paddingHorizontal: 18, paddingTop: 20 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: Colors.text, marginBottom: 12 },
-  hint:         { color: Colors.textLight, fontSize: 13 },
-
-  announceCard: {
-    backgroundColor: Colors.surface, borderRadius: 14,
-    padding: 14, flexDirection: 'row', gap: 12,
-    marginBottom: 8, alignItems: 'flex-start',
-    shadowColor: '#1A3A9C',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-    borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  announceBadge: {
-    width: 34, height: 34, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  announceTitle: { fontSize: 12, fontWeight: '700', marginBottom: 2 },
-  announceMsg:   { fontSize: 12, color: Colors.textMid, lineHeight: 18 },
-
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  menuCard: {
-    width: CARD_SIZE,
-    backgroundColor: Colors.surface,
-    borderRadius: 16, padding: 12, alignItems: 'center',
-    shadowColor: '#1A3A9C',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 8, elevation: 3,
-    borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  menuIcon: {
-    width: 50, height: 50, borderRadius: 15,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 8,
-  },
-  menuLabel: {
-    fontSize: 10, fontWeight: '600', color: Colors.textMid,
-    textAlign: 'center', lineHeight: 14,
-  },
+const s = StyleSheet.create({
+  root:       { flex: 1, backgroundColor: C.background },
+  header:     { paddingTop: (StatusBar.currentHeight ?? 44) + 12, paddingBottom: 22, paddingHorizontal: 18, overflow: 'hidden' },
+  hdecor1:    { position:'absolute', width:200, height:200, borderRadius:100, backgroundColor:'rgba(212,160,23,0.10)', top:-70, right:-50 },
+  hdecor2:    { position:'absolute', width:90,  height:90,  borderRadius:45,  backgroundColor:'rgba(212,160,23,0.07)', bottom:-30, left:40 },
+  hrow:       { flexDirection:'row', alignItems:'center', marginBottom: 16 },
+  avatarBox:  { width:48, height:48, borderRadius:15, backgroundColor:C.accentBright, alignItems:'center', justifyContent:'center', shadowColor:C.accent, shadowOffset:{width:0,height:3}, shadowOpacity:0.4, shadowRadius:6, elevation:4 },
+  avatarTxt:  { fontSize:17, fontWeight:'900', color:C.primary },
+  hWelcome:   { fontSize:11, color:'rgba(255,255,255,0.6)', marginBottom:1 },
+  hName:      { fontSize:17, fontWeight:'800', color:'#FFF' },
+  rolePill:   { marginTop:3, backgroundColor:'rgba(212,160,23,0.18)', borderRadius:20, paddingHorizontal:8, paddingVertical:2, alignSelf:'flex-start', borderWidth:1, borderColor:'rgba(212,160,23,0.3)' },
+  roleTxt:    { fontSize:10, color:C.accentLight, fontWeight:'600' },
+  logoutBtn:  { width:38, height:38, borderRadius:12, backgroundColor:'rgba(255,255,255,0.12)', alignItems:'center', justifyContent:'center' },
+  statsBox:   { flexDirection:'row', backgroundColor:'rgba(255,255,255,0.10)', borderRadius:14, padding:14, borderWidth:1, borderColor:'rgba(255,255,255,0.14)' },
+  statItem:   { flex:1, alignItems:'center', position:'relative' },
+  statVal:    { fontSize:19, fontWeight:'900', color:'#FFF' },
+  statLbl:    { fontSize:10, color:'rgba(255,255,255,0.58)', marginTop:2 },
+  statDivider:{ position:'absolute', right:0, top:4, width:1, height:28, backgroundColor:'rgba(255,255,255,0.18)' },
+  body:       { flex:1 },
+  section:    { paddingHorizontal:18, paddingTop:20 },
+  secHeader:  { flexDirection:'row', alignItems:'center', gap:8, marginBottom:12 },
+  goldBar:    { width:3, height:18, borderRadius:2, backgroundColor:C.accentBright },
+  secTitle:   { fontSize:14, fontWeight:'800', color:C.text },
+  hint:       { fontSize:13, color:C.textMuted, fontStyle:'italic' },
+  annCard:    { backgroundColor:C.surface, borderRadius:14, padding:14, flexDirection:'row', gap:12, alignItems:'flex-start', marginBottom:8, borderWidth:1, borderColor:C.borderLight, shadowColor:C.primary, shadowOffset:{width:0,height:2}, shadowOpacity:0.05, shadowRadius:6, elevation:2 },
+  annIcon:    { width:34, height:34, borderRadius:10, alignItems:'center', justifyContent:'center', flexShrink:0 },
+  annTitle:   { fontSize:12, fontWeight:'700', marginBottom:2 },
+  annMsg:     { fontSize:12, color:C.textSub, lineHeight:18 },
+  grid:       { flexDirection:'row', flexWrap:'wrap', gap:10 },
+  menuCard:   { width:MCOL, backgroundColor:C.surface, borderRadius:14, padding:11, alignItems:'center', borderWidth:1, borderColor:C.borderLight, shadowColor:C.primary, shadowOffset:{width:0,height:2}, shadowOpacity:0.06, shadowRadius:8, elevation:3 },
+  menuIcon:   { width:46, height:46, borderRadius:13, alignItems:'center', justifyContent:'center', marginBottom:7 },
+  menuLbl:    { fontSize:10, fontWeight:'600', color:C.textSub, textAlign:'center', lineHeight:13 },
 });

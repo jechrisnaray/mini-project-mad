@@ -1,41 +1,45 @@
-const Colors = {
-  // Primary
-  primary:      '#2D5BE3',
-  primaryDark:  '#1A3A9C',
-  primaryLight: '#EEF2FF',
+// SIU — Tema Kampus: Forest Green · Antique Gold · Cream White
+const C = {
+  // ── Primary: Forest Green ──────────────────────────────
+  primary:      '#1B5E35',   // deep forest green
+  primaryMid:   '#2E7D4F',   // medium green
+  primaryLight: '#D6EDE0',   // pale mint
+  primaryPale:  '#F0F7F3',   // near-white green tint
 
-  // Accent
-  accent:       '#F0C040',
-  accentLight:  '#FDE68A',
-  accentPale:   '#FFF9E6',
+  // ── Accent: Antique Gold ───────────────────────────────
+  accent:       '#B8860B',   // dark goldenrod
+  accentBright: '#D4A017',   // warm gold
+  accentLight:  '#FDF3D0',   // cream gold
+  accentPale:   '#FFFDF5',   // warm white
 
-  // Background & Surface
-  background:   '#F0F2F8',
+  // ── Base: Warm White ───────────────────────────────────
+  background:   '#F8F9F2',   // warm off-white (slight green tint)
   surface:      '#FFFFFF',
-  surfaceAlt:   '#F7F8FC',
+  surfaceWarm:  '#FEFCF5',   // warm surface
 
-  // Text
-  text:         '#1E2A45',
-  textMid:      '#4A5578',
-  textLight:    '#8A94B0',
+  // ── Borders & Dividers ─────────────────────────────────
+  border:       '#C8D9CC',
+  borderLight:  '#E4EEE7',
 
-  // Border
-  border:       '#D8DDED',
-  borderLight:  '#ECF0FA',
+  // ── Text ───────────────────────────────────────────────
+  text:         '#1A2E1E',   // near-black with green tone
+  textSub:      '#3D5C43',   // dark muted green
+  textMuted:    '#7A9A80',   // soft sage
 
-  // Semantic
-  success:      '#16A34A',
-  successLight: '#DCFCE7',
-  warning:      '#D97706',
-  warningLight: '#FEF9C3',
-  error:        '#DC2626',
-  errorLight:   '#FEE2E2',
+  // ── Semantic ───────────────────────────────────────────
+  success:      '#166534',
+  successBg:    '#DCFCE7',
+  warning:      '#92400E',
+  warningBg:    '#FEF3C7',
+  error:        '#991B1B',
+  errorBg:      '#FEE2E2',
+  info:         '#1E40AF',
+  infoBg:       '#DBEAFE',
 
-  // Nav
+  // ── Nav ────────────────────────────────────────────────
   navBg:        '#FFFFFF',
-  navActive:    '#2D5BE3',
-  navInactive:  '#8A94B0',
-  navBorder:    '#E8ECFA',
+  navActive:    '#1B5E35',
+  navInactive:  '#7A9A80',
 };
 
-export default Colors;
+export default C;

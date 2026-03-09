@@ -1,40 +1,39 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type UserRole = 'student' | 'admin';
-
 export type AuthUser = {
   _id: string;
   username: string;
   name: string;
-  role: UserRole;
+  role: 'student' | 'admin';
 };
 
-type AuthContextType = {
+type Ctx = {
   user: AuthUser | null;
   isLoading: boolean;
-  login: (user: AuthUser) => Promise<void>;
+  login: (u: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextType>({
+const AuthContext = createContext<Ctx>({
   user: null,
   isLoading: true,
   login: async () => {},
   logout: async () => {},
 });
 
-const KEY = 'siu_user';
+const KEY = '@siu_user';
 
+// ✅ NAMED export function — fix untuk error TS2614
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser]       = useState<AuthUser | null>(null);
+  const [isLoading, setLoad]  = useState(true);
 
   useEffect(() => {
     AsyncStorage.getItem(KEY)
-      .then((v) => { if (v) setUser(JSON.parse(v)); })
+      .then(v => { if (v) setUser(JSON.parse(v)); })
       .catch(() => {})
-      .finally(() => setIsLoading(false));
+      .finally(() => setLoad(false));
   }, []);
 
   const login = async (u: AuthUser) => {
@@ -54,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// ✅ NAMED export function — fix untuk error TS2614
 export function useAuth() {
   return useContext(AuthContext);
 }

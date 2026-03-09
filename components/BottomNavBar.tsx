@@ -2,59 +2,51 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, router } from 'expo-router';
-import Colors from '../constants/Colors';
+import C from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 
-type NavItem = {
+type Tab = {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  iconActive: keyof typeof Ionicons.glyphMap;
+  iconFilled: keyof typeof Ionicons.glyphMap;
   route: string;
-  roles: string[];
+  roles: ('student' | 'admin')[];
 };
 
-const STUDENT_ITEMS: NavItem[] = [
-  { label: 'Beranda',  icon: 'home-outline',   iconActive: 'home',   route: '/dashboard',    roles: ['student','admin'] },
-  { label: 'Nilai',    icon: 'school-outline',  iconActive: 'school', route: '/view-grade',   roles: ['student','admin'] },
-  { label: 'Jadwal',   icon: 'calendar-outline',iconActive: 'calendar',route: '/view-schedule',roles: ['student'] },
-  { label: 'Layanan',  icon: 'grid-outline',    iconActive: 'grid',   route: '/registration', roles: ['student'] },
-  { label: 'Biaya',    icon: 'wallet-outline',  iconActive: 'wallet', route: '/semester-cost',roles: ['student'] },
-];
-
-const ADMIN_ITEMS: NavItem[] = [
-  { label: 'Beranda',     icon: 'home-outline',   iconActive: 'home',   route: '/dashboard',   roles: ['admin'] },
-  { label: 'Lihat Nilai', icon: 'school-outline',  iconActive: 'school', route: '/view-grade',  roles: ['admin'] },
-  { label: 'Input Nilai', icon: 'create-outline',  iconActive: 'create', route: '/input-grade', roles: ['admin'] },
+const TABS: Tab[] = [
+  { label: 'Beranda',     icon: 'home-outline',     iconFilled: 'home',     route: '/dashboard',    roles: ['student', 'admin'] },
+  { label: 'Nilai',       icon: 'school-outline',   iconFilled: 'school',   route: '/view-grade',   roles: ['student', 'admin'] },
+  { label: 'Jadwal',      icon: 'calendar-outline', iconFilled: 'calendar', route: '/view-schedule',roles: ['student'] },
+  { label: 'Layanan',     icon: 'grid-outline',     iconFilled: 'grid',     route: '/registration', roles: ['student'] },
+  { label: 'Input Nilai', icon: 'create-outline',   iconFilled: 'create',   route: '/input-grade',  roles: ['admin'] },
 ];
 
 export default function BottomNavBar() {
   const { user } = useAuth();
   const pathname = usePathname();
-
   if (!user) return null;
 
-  const items = user.role === 'admin' ? ADMIN_ITEMS : STUDENT_ITEMS;
+  const tabs = TABS.filter(t => t.roles.includes(user.role));
 
   return (
-    <View style={styles.container}>
-      {items.map((item) => {
-        const isActive = pathname === item.route;
+    <View style={s.bar}>
+      {tabs.map(tab => {
+        const active = pathname === tab.route;
         return (
           <TouchableOpacity
-            key={item.route}
-            style={styles.tab}
-            onPress={() => router.push(item.route as any)}
+            key={tab.route}
+            style={s.tab}
+            onPress={() => router.push(tab.route as any)}
             activeOpacity={0.7}
           >
-            {isActive && <View style={styles.indicator} />}
-            <Ionicons
-              name={isActive ? item.iconActive : item.icon}
-              size={22}
-              color={isActive ? Colors.navActive : Colors.navInactive}
-            />
-            <Text style={[styles.label, isActive && styles.labelActive]}>
-              {item.label}
-            </Text>
+            <View style={[s.iconWrap, active && s.iconActive]}>
+              <Ionicons
+                name={active ? tab.iconFilled : tab.icon}
+                size={20}
+                color={active ? '#FFF' : C.navInactive}
+              />
+            </View>
+            <Text style={[s.label, active && s.labelActive]}>{tab.label}</Text>
           </TouchableOpacity>
         );
       })}
@@ -62,44 +54,24 @@ export default function BottomNavBar() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const s = StyleSheet.create({
+  bar: {
     flexDirection: 'row',
-    backgroundColor: Colors.navBg,
+    backgroundColor: C.navBg,
     borderTopWidth: 1,
-    borderTopColor: Colors.navBorder,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-    paddingHorizontal: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 16,
+    borderTopColor: C.borderLight,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 26 : 12,
+    paddingHorizontal: 6,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 14,
   },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-    paddingVertical: 2,
-    position: 'relative',
-  },
-  indicator: {
-    position: 'absolute',
-    top: -8,
-    width: 24,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: Colors.navActive,
-  },
-  label: {
-    fontSize: 10,
-    color: Colors.navInactive,
-    fontWeight: '500',
-  },
-  labelActive: {
-    color: Colors.navActive,
-    fontWeight: '700',
-  },
+  tab:         { flex: 1, alignItems: 'center', gap: 4 },
+  iconWrap:    { width: 42, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  iconActive:  { backgroundColor: C.primary },
+  label:       { fontSize: 10, color: C.navInactive, fontWeight: '500' },
+  labelActive: { color: C.navActive, fontWeight: '700' },
 });
