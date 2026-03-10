@@ -1,128 +1,166 @@
-import { View, Text, FlatList, StyleSheet, StatusBar } from 'react-native';
+/**
+ * view-grade.tsx — Nilai Akademik
+ * Student: IPK hero + transkrip per semester
+ * Admin:   Rekap semua MK → bisa tap untuk input
+ */
+import {
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, StatusBar,
+} from 'react-native';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useAuth } from '../context/AuthContext';
-import { PageHeader, EmptyState, LoadingScreen } from '../components/ui';
-import { LinearGradient } from 'expo-linear-gradient';
-import C from '../constants/Colors';
+import { PageHeader, LoadingScreen, EmptyState } from '../components/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import C, { SH, R } from '../constants/Colors';
 
 const GW: Record<string, number> = { A:4,'A-':3.7,'B+':3.3,B:3,'B-':2.7,'C+':2.3,C:2,D:1,E:0 };
-
-type GradeStyle = { color: string; bg: string; glow: string };
-const GS: Record<string, GradeStyle> = {
-  A:   { color: C.success,  bg: C.successBg, glow: '#16A34A' },
-  'A-':{ color: C.success,  bg: C.successBg, glow: '#16A34A' },
-  'B+':{ color: C.info,     bg: C.infoBg,    glow: '#2563EB' },
-  B:   { color: C.info,     bg: C.infoBg,    glow: '#2563EB' },
-  'B-':{ color: C.info,     bg: C.infoBg,    glow: '#2563EB' },
-  'C+':{ color: C.warning,  bg: C.warningBg, glow: '#D97706' },
-  C:   { color: C.warning,  bg: C.warningBg, glow: '#D97706' },
-  D:   { color: C.error,    bg: C.errorBg,   glow: '#DC2626' },
-  E:   { color: C.error,    bg: C.errorBg,   glow: '#DC2626' },
+const gradeLabel = (v: number) =>
+  v>=3.51?'Dengan Pujian':v>=3.01?'Sangat Memuaskan':v>=2.76?'Memuaskan':v>=2.0?'Cukup':'Tidak Memuaskan';
+const badgeBg = (g: string) => {
+  const w = GW[g]??0;
+  if(w>=3.5) return { bg:C.ink, txt:C.white };
+  if(w>=3.0) return { bg:C.g800, txt:C.white };
+  if(w>=2.0) return { bg:C.g200, txt:C.g800 };
+  return { bg:C.g100, txt:C.g500 };
 };
+
+function StudentView({ userId }: { userId: string }) {
+  const grades = useQuery(api.grades.listByUser, { userId: userId as any });
+  if (!grades) return <LoadingScreen />;
+  if (!grades.length) return <EmptyState icon="school-outline" title="Belum ada nilai" subtitle="Nilai akan tampil setelah dosen menginput" />;
+
+  const totalSKS  = grades.reduce((s,g)=>s+(g.course?.credits??0),0);
+  const totalMutu = grades.reduce((s,g)=>s+(GW[g.grade]??0)*(g.course?.credits??0),0);
+  const ipk       = totalSKS>0 ? totalMutu/totalSKS : 0;
+
+  const bySem: Record<string, typeof grades> = {};
+  for (const g of grades) {
+    const k = g.semester ?? 'Lainnya';
+    if (!bySem[k]) bySem[k] = [];
+    bySem[k].push(g);
+  }
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom:40 }}>
+      {/* IPK Hero */}
+      <View style={s.hero}>
+        <View style={{ flex:1 }}>
+          <Text style={s.heroLbl}>Indeks Prestasi Kumulatif</Text>
+          <Text style={s.heroIpk}>{ipk.toFixed(2)}</Text>
+          <Text style={s.heroTag}>{gradeLabel(ipk)}</Text>
+        </View>
+        <View style={s.heroStats}>
+          {[['SKS', totalSKS], ['MK', grades.length], ['Mutu', totalMutu.toFixed(0)]].map(([lbl,val]) => (
+            <View key={lbl as string} style={s.heroStat}>
+              <Text style={s.heroStatVal}>{val}</Text>
+              <Text style={s.heroStatLbl}>{lbl}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {Object.entries(bySem).map(([title, data]) => {
+        const sSKS  = data.reduce((s,g)=>s+(g.course?.credits??0),0);
+        const sMutu = data.reduce((s,g)=>s+(GW[g.grade]??0)*(g.course?.credits??0),0);
+        const ips   = sSKS>0 ? sMutu/sSKS : 0;
+        return (
+          <View key={title} style={s.semGroup}>
+            <View style={s.semHeader}>
+              <View>
+                <Text style={s.semTitle}>{title}</Text>
+                <Text style={s.semMeta}>{data.length} mk · {sSKS} SKS</Text>
+              </View>
+              <View style={s.ipsChip}>
+                <Text style={s.ipsVal}>{ips.toFixed(2)}</Text>
+                <Text style={s.ipsLbl}>IPS</Text>
+              </View>
+            </View>
+            <View style={s.table}>
+              {data.map((g, i) => {
+                const { bg, txt } = badgeBg(g.grade);
+                return (
+                  <View key={g._id} style={[s.row, i>0&&{borderTopWidth:1,borderTopColor:C.border}]}>
+                    <View style={s.codeBox}><Text style={s.code}>{g.course?.code??'–'}</Text></View>
+                    <View style={{flex:1}}>
+                      <Text style={s.mkName}>{g.course?.name??'Mata Kuliah'}</Text>
+                      <Text style={s.mkMeta}>{g.course?.credits??0} SKS · Mutu {((GW[g.grade]??0)*(g.course?.credits??0)).toFixed(0)}</Text>
+                    </View>
+                    <View style={[s.badge,{backgroundColor:bg}]}>
+                      <Text style={[s.badgeTxt,{color:txt}]}>{g.grade}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function AdminView() {
+  const courses = useQuery(api.courses.list);
+  if (!courses) return <LoadingScreen />;
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{padding:20,paddingBottom:40}}>
+      <Text style={s.introTxt}>Tap untuk input / lihat nilai mahasiswa</Text>
+      {courses.map(c => (
+        <TouchableOpacity key={c._id} style={s.courseCard} onPress={() => router.push('/input-grade' as any)} activeOpacity={0.7}>
+          <View style={s.codeBox}><Text style={s.code}>{c.code}</Text></View>
+          <View style={{flex:1}}>
+            <Text style={s.mkName}>{c.name}</Text>
+            <Text style={s.mkMeta}>{c.credits} SKS · {c.lecturer}</Text>
+          </View>
+          <View style={s.editBtn}><Ionicons name="create-outline" size={14} color={C.textMuted} /></View>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+}
 
 export default function ViewGradeScreen() {
   const { user } = useAuth();
-  const grades = useQuery(api.grades.listByUser, user ? { userId: user._id as any } : 'skip');
-
-  if (!grades) return <LoadingScreen />;
-
-  let ipk = 0, totalSKS = 0;
-  if (grades.length) {
-    const wb = grades.reduce((s, g) => s + (GW[g.grade] ?? 0) * (g.course?.credits ?? 0), 0);
-    const ws = grades.reduce((s, g) => s + (g.course?.credits ?? 0), 0);
-    if (ws > 0) { ipk = wb / ws; totalSKS = ws; }
-  }
-
-  const ipkColor = ipk >= 3.5 ? C.success : ipk >= 3.0 ? C.info : ipk >= 2.5 ? C.warning : C.error;
-
+  if (!user) return null;
+  const isAdmin = user.role === 'admin';
   return (
-    <View style={s.root}>
-      <PageHeader title="Nilai Akademik" subtitle={`${grades.length} mata kuliah`}>
-        {grades.length > 0 && (
-          <View style={s.ipkCard}>
-            <View style={s.ipkLeft}>
-              <Text style={s.ipkLabel}>IPK Kumulatif</Text>
-              <Text style={[s.ipkValue, { color: ipkColor }]}>{ipk.toFixed(2)}</Text>
-            </View>
-            <View style={s.ipkDivider} />
-            <View style={s.ipkRight}>
-              <Text style={s.ipkSksLabel}>Total SKS</Text>
-              <Text style={s.ipkSksValue}>{totalSKS} SKS</Text>
-            </View>
-            <View style={s.ipkRight}>
-              <Text style={s.ipkSksLabel}>MK Selesai</Text>
-              <Text style={s.ipkSksValue}>{grades.length} MK</Text>
-            </View>
-          </View>
-        )}
-      </PageHeader>
-
-      {grades.length === 0
-        ? <EmptyState icon="school-outline" title="Belum Ada Nilai" subtitle="Nilai Anda akan muncul di sini setelah diinput oleh dosen" />
-        : (
-          <FlatList
-            data={grades}
-            keyExtractor={i => i._id}
-            contentContainerStyle={s.list}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const gs = GS[item.grade] ?? { color: C.textMuted, bg: C.borderLight, glow: C.textMuted };
-              return (
-                <View style={s.card}>
-                  <View style={[s.gradeBadge, { backgroundColor: gs.bg, borderColor: gs.color + '40' }]}>
-                    <Text style={[s.gradeText, { color: gs.color }]}>{item.grade}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={s.codeRow}>
-                      <Text style={s.courseCode}>{item.course?.code ?? '—'}</Text>
-                      <Text style={s.sks}>{item.course?.credits ?? 0} SKS</Text>
-                    </View>
-                    <Text style={s.courseName}>{item.course?.name ?? 'Mata Kuliah'}</Text>
-                    <View style={s.bottomRow}>
-                      <View style={s.scoreChip}>
-                        <Text style={s.scoreLabel}>Skor</Text>
-                        <Text style={s.scoreValue}>{item.score}</Text>
-                      </View>
-                      <View style={s.bobotChip}>
-                        <Text style={s.bobotLabel}>Bobot</Text>
-                        <Text style={s.bobotValue}>{(GW[item.grade] ?? 0).toFixed(1)}</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              );
-            }}
-          />
-        )
-      }
+    <View style={{flex:1, backgroundColor:C.bg}}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
+      <PageHeader title={isAdmin?'Rekap Nilai':'Nilai Akademik'} subtitle={isAdmin?'Semua Mata Kuliah':'Transkrip & IPK'} showBack={false} />
+      {isAdmin ? <AdminView /> : <StudentView userId={user._id} />}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root:       { flex: 1, backgroundColor: C.background },
-  ipkCard:    { flexDirection:'row', alignItems:'center', backgroundColor:'rgba(255,255,255,0.12)', borderRadius:14, padding:14, marginTop:14, borderWidth:1, borderColor:'rgba(255,255,255,0.18)', gap:12 },
-  ipkLeft:    { alignItems:'center' },
-  ipkLabel:   { fontSize:10, color:'rgba(255,255,255,0.65)', marginBottom:2 },
-  ipkValue:   { fontSize:26, fontWeight:'900' },
-  ipkDivider: { width:1, height:36, backgroundColor:'rgba(255,255,255,0.2)', marginHorizontal:4 },
-  ipkRight:   { flex:1, alignItems:'center' },
-  ipkSksLabel:{ fontSize:10, color:'rgba(255,255,255,0.65)', marginBottom:2 },
-  ipkSksValue:{ fontSize:15, fontWeight:'700', color:'#FFF' },
-  list:       { padding:16, gap:10 },
-  card:       { backgroundColor:C.surface, borderRadius:16, padding:16, flexDirection:'row', gap:14, alignItems:'center', borderWidth:1, borderColor:C.borderLight, shadowColor:C.primary, shadowOffset:{width:0,height:2}, shadowOpacity:0.06, shadowRadius:8, elevation:3 },
-  gradeBadge: { width:52, height:52, borderRadius:14, alignItems:'center', justifyContent:'center', borderWidth:1.5, flexShrink:0 },
-  gradeText:  { fontSize:18, fontWeight:'900' },
-  codeRow:    { flexDirection:'row', justifyContent:'space-between', marginBottom:3 },
-  courseCode: { fontSize:12, fontWeight:'700', color:C.accent },
-  sks:        { fontSize:11, color:C.textMuted, fontWeight:'600' },
-  courseName: { fontSize:14, fontWeight:'700', color:C.text, marginBottom:8 },
-  bottomRow:  { flexDirection:'row', gap:8 },
-  scoreChip:  { flexDirection:'row', alignItems:'center', gap:4, backgroundColor:C.primaryLight, borderRadius:8, paddingHorizontal:8, paddingVertical:4 },
-  scoreLabel: { fontSize:10, color:C.primaryMid },
-  scoreValue: { fontSize:12, fontWeight:'800', color:C.primary },
-  bobotChip:  { flexDirection:'row', alignItems:'center', gap:4, backgroundColor:C.accentLight, borderRadius:8, paddingHorizontal:8, paddingVertical:4 },
-  bobotLabel: { fontSize:10, color:C.accent },
-  bobotValue: { fontSize:12, fontWeight:'800', color:C.accent },
+  hero:        { margin:20, backgroundColor:C.ink, borderRadius:R.xl, padding:20, flexDirection:'row', ...SH.md },
+  heroLbl:     { fontSize:10, color:'rgba(255,255,255,0.6)', fontWeight:'600', marginBottom:4 },
+  heroIpk:     { fontSize:54, fontWeight:'900', color:C.white, lineHeight:58, letterSpacing:-2 },
+  heroTag:     { fontSize:11, color:'rgba(255,255,255,0.7)', fontWeight:'600', marginTop:4 },
+  heroStats:   { justifyContent:'center', borderLeftWidth:1, borderLeftColor:'rgba(255,255,255,0.2)', paddingLeft:16, gap:0 },
+  heroStat:    { paddingVertical:5 },
+  heroStatVal: { fontSize:16, fontWeight:'800', color:C.white },
+  heroStatLbl: { fontSize:9, color:'rgba(255,255,255,0.55)', fontWeight:'600' },
+
+  semGroup:   { marginHorizontal:20, marginBottom:16 },
+  semHeader:  { flexDirection:'row', justifyContent:'space-between', alignItems:'flex-end', marginBottom:8 },
+  semTitle:   { fontSize:13, fontWeight:'700', color:C.text },
+  semMeta:    { fontSize:10, color:C.textMuted, marginTop:1 },
+  ipsChip:    { alignItems:'center', backgroundColor:C.surface, borderRadius:R.sm, paddingHorizontal:10, paddingVertical:4, borderWidth:1, borderColor:C.border },
+  ipsVal:     { fontSize:16, fontWeight:'900', color:C.text },
+  ipsLbl:     { fontSize:8, color:C.textMuted, fontWeight:'600' },
+
+  table:      { backgroundColor:C.surface, borderRadius:R.lg, borderWidth:1, borderColor:C.border, overflow:'hidden', ...SH.xs },
+  row:        { flexDirection:'row', alignItems:'center', paddingHorizontal:14, paddingVertical:11, gap:10 },
+  codeBox:    { backgroundColor:C.g900, borderRadius:R.xs, paddingHorizontal:6, paddingVertical:3, alignSelf:'flex-start' },
+  code:       { fontSize:8, fontWeight:'800', color:C.white, letterSpacing:0.3 },
+  mkName:     { fontSize:12, fontWeight:'600', color:C.text, marginBottom:2 },
+  mkMeta:     { fontSize:10, color:C.textMuted },
+  badge:      { width:34, height:34, borderRadius:R.sm, alignItems:'center', justifyContent:'center' },
+  badgeTxt:   { fontSize:13, fontWeight:'800' },
+
+  introTxt:   { fontSize:12, color:C.textMuted, marginBottom:14 },
+  courseCard: { flexDirection:'row', alignItems:'center', gap:12, backgroundColor:C.surface, borderRadius:R.md, padding:14, marginBottom:6, borderWidth:1, borderColor:C.border, ...SH.xs },
+  editBtn:    { width:28, height:28, borderRadius:R.sm, backgroundColor:C.g100, alignItems:'center', justifyContent:'center', borderWidth:1, borderColor:C.border },
 });

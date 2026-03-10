@@ -2,32 +2,29 @@ import { mutation, query } from './_generated/server';
 
 export const list = query({
   args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query('announcements').collect();
-  },
+  handler: async (ctx) => ctx.db.query('announcements').collect(),
 });
 
 export const seed = mutation({
   args: {},
   handler: async (ctx) => {
-    const existing = await ctx.db.query('announcements').collect();
-
-    if (existing.length > 0) {
-      return 'Data announcements sudah ada';
-    }
-
+    const existing = await ctx.db.query('announcements').first();
+    if (existing) return 'sudah ada';
     await ctx.db.insert('announcements', {
-      title: 'Academic',
-      message: 'Maksimum waktu kuliah mahasiswa adalah 7 tahun sejak terdaftar.',
+      title: 'Batas Studi',
+      message: 'Maksimum masa studi mahasiswa adalah 7 tahun sejak terdaftar.',
       color: 'yellow',
     });
-
     await ctx.db.insert('announcements', {
-      title: 'Info',
-      message: 'Periksa kembali jadwal sebelum mengikuti perkuliahan.',
+      title: 'Jadwal UAS',
+      message: 'Ujian Akhir Semester dimulai 15 Januari 2025. Cek jadwal di portal akademik.',
       color: 'blue',
     });
-
-    return 'Seed announcements berhasil';
+    await ctx.db.insert('announcements', {
+      title: 'Pembayaran SPP',
+      message: 'Batas pembayaran SPP semester genap: 31 Januari 2025.',
+      color: 'red',
+    });
+    return 'ok';
   },
 });

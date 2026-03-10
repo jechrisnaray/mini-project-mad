@@ -1,33 +1,33 @@
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  StatusBar, Alert, KeyboardAvoidingView, Platform, ScrollView,
+  StatusBar, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { PrimaryButton } from '../components/ui';
-import C from '../constants/Colors';
+import C, { SH, R } from '../constants/Colors';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPw,   setShowPw]   = useState(false);
-  const [loading,  setLoading]  = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const { login }  = useAuth();
-  const seedUsers  = useMutation(api.users.seedUsers);
-  const loginMut   = useMutation(api.users.login);
+  const { login } = useAuth();
+  // Fungsi seedAll ada di convex/users.ts → api.users.seedAll
+  const seedAll  = useMutation(api.users.seedAll);
+  const loginMut = useMutation(api.users.login);
 
-  // Auto-seed saat pertama kali
-  useState(() => { seedUsers().catch(() => {}); });
+  // Seed data awal saat app dibuka
+  useEffect(() => { seedAll().catch(() => {}); }, []);
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert('Peringatan', 'Username dan password wajib diisi.'); return;
+      Alert.alert('Peringatan', 'Username dan password wajib diisi.');
+      return;
     }
     setLoading(true);
     try {
@@ -42,121 +42,110 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <LinearGradient
-        colors={[C.primary, C.primaryMid, '#3A8A5C']}
-        style={s.bg}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
 
-        {/* Decorative gold circles */}
-        <View style={s.goldCircle1} />
-        <View style={s.goldCircle2} />
-        <View style={s.leafShape} />
-
-        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-
-          {/* Logo area */}
-          <View style={s.logoArea}>
-            <View style={s.logoBox}>
-              <Ionicons name="school" size={40} color={C.accentBright} />
-            </View>
-            <Text style={s.logoText}>SIU</Text>
-            <Text style={s.logoSub}>Universitas Klabat</Text>
-            {/* Gold divider */}
-            <View style={s.goldDivider} />
+        {/* Logo */}
+        <View style={s.logoArea}>
+          <View style={s.logoBox}>
+            <Text style={s.logoTxt}>SIU</Text>
           </View>
+          <Text style={s.appName}>Universitas Klabat</Text>
+          <Text style={s.appSub}>Sistem Informasi Akademik</Text>
+        </View>
 
-          {/* Card */}
-          <View style={s.card}>
-            <Text style={s.cardTitle}>Selamat Datang</Text>
-            <Text style={s.cardSub}>Masuk dengan akun akademik Anda</Text>
+        {/* Form */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>Masuk ke akun Anda</Text>
 
-            {/* Username */}
+          {/* Username */}
+          <View style={s.field}>
             <Text style={s.label}>Username</Text>
             <View style={s.inputRow}>
-              <Ionicons name="person-outline" size={17} color={C.textMuted} style={s.inputIcon} />
+              <Ionicons name="person-outline" size={15} color={C.g400} />
               <TextInput
                 style={s.input}
                 placeholder="Masukkan username"
-                placeholderTextColor={C.textMuted}
+                placeholderTextColor={C.textDisabled}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
-                autoCorrect={false}
               />
             </View>
+          </View>
 
-            {/* Password */}
+          {/* Password */}
+          <View style={s.field}>
             <Text style={s.label}>Password</Text>
             <View style={s.inputRow}>
-              <Ionicons name="lock-closed-outline" size={17} color={C.textMuted} style={s.inputIcon} />
+              <Ionicons name="lock-closed-outline" size={15} color={C.g400} />
               <TextInput
                 style={[s.input, { flex: 1 }]}
                 placeholder="Masukkan password"
-                placeholderTextColor={C.textMuted}
+                placeholderTextColor={C.textDisabled}
                 secureTextEntry={!showPw}
                 value={password}
                 onChangeText={setPassword}
               />
-              <TouchableOpacity onPress={() => setShowPw(v => !v)} style={{ padding: 6 }}>
-                <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={17} color={C.textMuted} />
+              <TouchableOpacity onPress={() => setShowPw(v => !v)}>
+                <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={15} color={C.g400} />
               </TouchableOpacity>
             </View>
-
-            <View style={{ marginTop: 6 }}>
-              <PrimaryButton label="Masuk" onPress={handleLogin} loading={loading} icon="log-in-outline" />
-            </View>
-
-            {/* Gold accent line */}
-            <View style={s.orRow}>
-              <View style={s.orLine} />
-              <Text style={s.orText}>atau</Text>
-              <View style={s.orLine} />
-            </View>
-
-            <TouchableOpacity style={s.regBtn} onPress={() => router.push('/register' as any)}>
-              <Text style={s.regTxt}>
-                Belum punya akun?{' '}
-                <Text style={{ color: C.primary, fontWeight: '800' }}>Daftar di sini</Text>
-              </Text>
-            </TouchableOpacity>
           </View>
 
-          {/* Footer */}
-          <Text style={s.footer}>© 2025 Universitas Klabat · SIU v1.0</Text>
+          <TouchableOpacity style={[s.btn, loading && { opacity: 0.6 }]} onPress={handleLogin} disabled={loading}>
+            {loading ? <ActivityIndicator size="small" color={C.white} /> : <Text style={s.btnTxt}>Masuk</Text>}
+          </TouchableOpacity>
 
-        </ScrollView>
-      </LinearGradient>
+          <TouchableOpacity style={s.regRow} onPress={() => router.push('/register' as any)}>
+            <Text style={s.regTxt}>Belum punya akun? <Text style={{ fontWeight: '700', color: C.text }}>Daftar sekarang</Text></Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Info akun demo */}
+        <View style={s.demo}>
+          <Text style={s.demoHead}>Akun Demo</Text>
+          <View style={s.demoRow}>
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={s.demoRole}>Mahasiswa</Text>
+              <Text style={s.demoCred}>yeremia / 12345</Text>
+            </View>
+            <View style={{ width: 1, height: 28, backgroundColor: C.border }} />
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={s.demoRole}>Admin</Text>
+              <Text style={s.demoCred}>admin / admin123</Text>
+            </View>
+          </View>
+        </View>
+
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const PT = (StatusBar.currentHeight ?? 44) + 24;
+const PT = (StatusBar.currentHeight ?? 44) + 16;
 const s = StyleSheet.create({
-  bg:          { flex: 1 },
-  goldCircle1: { position: 'absolute', width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(212,160,23,0.10)', top: -80, right: -60 },
-  goldCircle2: { position: 'absolute', width: 120, height: 120, borderRadius: 60,  backgroundColor: 'rgba(212,160,23,0.07)', bottom: 120, left: -40 },
-  leafShape:   { position: 'absolute', width: 80,  height: 80,  borderRadius: 40,  backgroundColor: 'rgba(255,255,255,0.05)', top: 200, left: 20 },
-  scroll:      { flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: PT },
-  logoArea:    { alignItems: 'center', marginBottom: 28 },
-  logoBox:     { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1.5, borderColor: 'rgba(212,160,23,0.4)' },
-  logoText:    { fontSize: 30, fontWeight: '900', color: '#FFF', letterSpacing: 4 },
-  logoSub:     { fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 4, letterSpacing: 0.5 },
-  goldDivider: { width: 50, height: 2, backgroundColor: C.accentBright, borderRadius: 2, marginTop: 14, opacity: 0.8 },
-  card:        { backgroundColor: C.surface, borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.18, shadowRadius: 28, elevation: 12 },
-  cardTitle:   { fontSize: 20, fontWeight: '800', color: C.text, marginBottom: 4 },
-  cardSub:     { fontSize: 12, color: C.textMuted, marginBottom: 20 },
-  label:       { fontSize: 12, fontWeight: '700', color: C.textSub, marginBottom: 6 },
-  inputRow:    { flexDirection: 'row', alignItems: 'center', backgroundColor: C.background, borderRadius: 13, borderWidth: 1.5, borderColor: C.border, marginBottom: 14, paddingHorizontal: 12 },
-  inputIcon:   { marginRight: 8 },
-  input:       { flex: 1, paddingVertical: 13, fontSize: 15, color: C.text },
-  orRow:       { flexDirection: 'row', alignItems: 'center', marginVertical: 16, gap: 10 },
-  orLine:      { flex: 1, height: 1, backgroundColor: C.borderLight },
-  orText:      { fontSize: 12, color: C.textMuted },
-  regBtn:      { alignItems: 'center' },
-  regTxt:      { fontSize: 13, color: C.textSub },
-  footer:      { textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 24 },
+  root:     { flex: 1, backgroundColor: C.bg },
+  scroll:   { flexGrow: 1, padding: 24, paddingTop: PT, paddingBottom: 40, justifyContent: 'center' },
+  logoArea: { alignItems: 'center', marginBottom: 32, gap: 6 },
+  logoBox:  { width: 56, height: 56, borderRadius: R.lg, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center', marginBottom: 8, ...SH.md },
+  logoTxt:  { fontSize: 14, fontWeight: '900', color: C.white },
+  appName:  { fontSize: 18, fontWeight: '800', color: C.text },
+  appSub:   { fontSize: 12, color: C.textMuted },
+  card:     { backgroundColor: C.surface, borderRadius: R.xl, padding: 24, borderWidth: 1, borderColor: C.border, ...SH.sm },
+  cardTitle:{ fontSize: 14, fontWeight: '600', color: C.textMuted, marginBottom: 20 },
+  field:    { marginBottom: 14 },
+  label:    { fontSize: 11, fontWeight: '600', color: C.textMuted, marginBottom: 6 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.g100, borderRadius: R.md, borderWidth: 1.5, borderColor: C.border, paddingHorizontal: 12, height: 46 },
+  input:    { flex: 1, fontSize: 14, color: C.text },
+  btn:      { height: 46, backgroundColor: C.ink, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  btnTxt:   { color: C.white, fontSize: 14, fontWeight: '700' },
+  regRow:   { alignItems: 'center', marginTop: 16 },
+  regTxt:   { fontSize: 13, color: C.textMuted },
+  demo:     { marginTop: 14, backgroundColor: C.surface, borderRadius: R.lg, padding: 14, borderWidth: 1, borderColor: C.border },
+  demoHead: { fontSize: 10, fontWeight: '700', color: C.textMuted, marginBottom: 10 },
+  demoRow:  { flexDirection: 'row', alignItems: 'center' },
+  demoRole: { fontSize: 10, color: C.textMuted },
+  demoCred: { fontSize: 12, fontWeight: '700', color: C.text },
 });

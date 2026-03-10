@@ -10,22 +10,22 @@ const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!);
 
 const WITH_NAV = [
   '/dashboard', '/view-grade', '/view-schedule', '/registration',
-  '/add-drop', '/drop-subject', '/teacher-evaluation',
-  '/ospek-kkn', '/semester-cost', '/input-grade',
+  '/add-drop', '/drop-subject', '/teacher-evaluation', '/ospek-kkn',
+  '/semester-cost', '/input-grade', '/profile', '/students',
 ];
 
 function Shell() {
-  const path = usePathname();
+  const path     = usePathname();
   const { user } = useAuth();
-  const showNav = !!user && WITH_NAV.includes(path);
+  const showNav  = !!user && WITH_NAV.includes(path);
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
       <Stack
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
-          contentStyle: { backgroundColor: C.background },
+          contentStyle: { backgroundColor: C.bg },
         }}
       />
       {showNav && <BottomNavBar />}
@@ -37,7 +37,7 @@ export default function RootLayout() {
   return (
     <ConvexProvider client={convex}>
       <AuthProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <Shell />
       </AuthProvider>
     </ConvexProvider>

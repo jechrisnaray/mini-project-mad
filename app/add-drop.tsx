@@ -1,11 +1,11 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useAuth } from '../context/AuthContext';
-import { PageHeader, PrimaryButton, LoadingScreen, GoldChip } from '../components/ui';
+import { PageHeader, PrimaryButton, LoadingScreen } from '../components/ui';
 import { Ionicons } from '@expo/vector-icons';
-import C from '../constants/Colors';
+import C, { SH, R } from '../constants/Colors';
 
 export default function AddDropScreen() {
   const { user } = useAuth();
@@ -13,144 +13,126 @@ export default function AddDropScreen() {
   const myRegs     = useQuery(api.registrations.listByUser, user ? { userId: user._id as any } : 'skip');
   const addDropMut = useMutation(api.registrations.addDrop);
 
-  const [addId,  setAddId]  = useState<string | null>(null);
+  const [addId, setAddId]   = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const [loading, setLoad]  = useState(false);
 
   if (!allCourses || !myRegs) return <LoadingScreen />;
 
-  const registeredIds = new Set(myRegs.filter(r => r.status === 'registered').map(r => r.courseId));
-  const canAdd  = allCourses.filter(c => !registeredIds.has(c._id));
-  const canDrop = myRegs.filter(r => r.status === 'registered');
+  const active   = myRegs.filter(r => r.status === 'registered');
+  const regIds   = new Set(active.map(r => r.courseId));
+  const canAdd   = allCourses.filter(c => !regIds.has(c._id));
+  const totalSKS = active.reduce((s, r) => s + (r.course?.credits ?? 0), 0);
 
   const handleSave = async () => {
     if (!addId && !dropId) { Alert.alert('Info', 'Pilih MK untuk ditambah atau di-drop.'); return; }
-    Alert.alert('Konfirmasi Add/Drop', 'Yakin ingin menyimpan perubahan?', [
+    Alert.alert('Simpan Perubahan', 'Yakin menyimpan perubahan Add/Drop?', [
       { text: 'Batal', style: 'cancel' },
       {
         text: 'Simpan', onPress: async () => {
           setLoad(true);
           try {
-            await addDropMut({ userId: user!._id as any, addCourseId: addId as any, dropCourseId: dropId as any });
+            // Hanya kirim field yang ada nilai (hindari mengirim null/undefined ke Convex)
+            const args: { userId: any; addCourseId?: any; dropCourseId?: any } = {
+              userId: user!._id as any,
+            };
+            if (addId)  args.addCourseId  = addId;
+            if (dropId) args.dropCourseId = dropId;
+
+            await addDropMut(args);
             Alert.alert('Berhasil', 'Perubahan Add/Drop disimpan.');
             setAddId(null); setDropId(null);
-          } catch (e: any) { Alert.alert('Gagal', e?.message ?? 'Terjadi kesalahan'); }
+          } catch (e: any) { Alert.alert('Gagal', e?.message); }
           finally { setLoad(false); }
-        }
+        },
       },
     ]);
   };
 
   return (
     <View style={s.root}>
-      <PageHeader title="Add / Drop Mata Kuliah" subtitle="Tambah atau batalkan pendaftaran MK" />
-
+      <PageHeader title="Add / Drop MK" subtitle={`SKS aktif: ${totalSKS}`} />
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* ADD */}
-        <View style={s.section}>
-          <View style={s.sectionHeader}>
-            <View style={[s.sectionDot, { backgroundColor: C.primary }]} />
-            <Text style={s.sectionTitle}>Tambah Mata Kuliah</Text>
-          </View>
-          {canAdd.length === 0
-            ? <Text style={s.empty}>Tidak ada MK yang bisa ditambahkan.</Text>
-            : canAdd.map(c => (
-              <TouchableOpacity
-                key={c._id}
-                style={[s.item, addId === c._id && s.itemActive]}
-                onPress={() => setAddId(addId === c._id ? null : c._id)}
-                activeOpacity={0.7}
-              >
-                <View style={s.itemLeft}>
-                  <GoldChip label={c.code} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.itemName}>{c.name}</Text>
-                    <Text style={s.itemSub}>{c.schedule} · {c.credits} SKS</Text>
-                  </View>
-                </View>
-                {addId === c._id && (
-                  <View style={s.checkCircle}>
-                    <Ionicons name="checkmark" size={14} color="#FFF" />
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))
-          }
-        </View>
-
-        {/* DROP */}
-        <View style={s.section}>
-          <View style={s.sectionHeader}>
-            <View style={[s.sectionDot, { backgroundColor: C.error }]} />
-            <Text style={[s.sectionTitle, { color: C.error }]}>Drop Mata Kuliah</Text>
-          </View>
-          {canDrop.length === 0
-            ? <Text style={s.empty}>Belum ada MK yang terdaftar.</Text>
-            : canDrop.map(r => (
-              <TouchableOpacity
-                key={r._id}
-                style={[s.item, s.itemDanger, dropId === r.courseId && s.itemDangerActive]}
-                onPress={() => setDropId(dropId === r.courseId ? null : r.courseId)}
-                activeOpacity={0.7}
-              >
-                <View style={s.itemLeft}>
-                  <View style={[s.codeBox, { backgroundColor: C.errorBg }]}>
-                    <Text style={[s.codeBoxTxt, { color: C.error }]}>{r.course?.code ?? '—'}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.itemName}>{r.course?.name ?? 'Mata Kuliah'}</Text>
-                    <Text style={s.itemSub}>{r.course?.schedule} · {r.course?.credits ?? 0} SKS</Text>
-                  </View>
-                </View>
-                {dropId === r.courseId && (
-                  <View style={[s.checkCircle, { backgroundColor: C.error }]}>
-                    <Ionicons name="close" size={14} color="#FFF" />
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))
-          }
-        </View>
-
-        {/* Summary */}
+        {/* Ringkasan perubahan */}
         {(addId || dropId) && (
           <View style={s.summary}>
-            <Text style={s.sumTitle}>Ringkasan Perubahan</Text>
-            {addId && <Text style={s.sumAdd}>+ {canAdd.find(c => c._id === addId)?.name}</Text>}
-            {dropId && <Text style={s.sumDrop}>− {canDrop.find(r => r.courseId === dropId)?.course?.name}</Text>}
+            <Text style={s.summaryHead}>RINGKASAN PERUBAHAN</Text>
+            {addId  && <Text style={s.summaryAdd}>+ {canAdd.find(c => c._id === addId)?.name}</Text>}
+            {dropId && <Text style={s.summaryDrop}>− {active.find(r => r.courseId === dropId)?.course?.name}</Text>}
           </View>
         )}
 
-        <View style={s.btnWrap}>
-          <PrimaryButton label="Simpan Perubahan" onPress={handleSave} loading={loading} icon="save-outline" />
+        {/* Tambah MK */}
+        <Text style={s.sectionTitle}>Tambah Mata Kuliah ({canAdd.length})</Text>
+        {canAdd.length === 0 ? (
+          <View style={s.emptyRow}><Text style={s.emptyTxt}>Tidak ada MK yang bisa ditambahkan</Text></View>
+        ) : (
+          canAdd.map(c => {
+            const sel = addId === c._id;
+            return (
+              <TouchableOpacity key={c._id} style={[s.item, sel && s.itemActive]} onPress={() => setAddId(sel ? null : c._id)}>
+                <View style={s.codeTag}><Text style={s.codeTxt}>{c.code}</Text></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.itemName}>{c.name}</Text>
+                  <Text style={s.itemSub}>{c.day ?? c.schedule} · {c.credits} SKS</Text>
+                </View>
+                <View style={[s.chk, sel && s.chkActive]}>
+                  {sel && <Ionicons name="checkmark" size={11} color={C.white} />}
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
+
+        {/* Drop MK */}
+        <Text style={s.sectionTitle}>Drop Mata Kuliah ({active.length})</Text>
+        {active.length === 0 ? (
+          <View style={s.emptyRow}><Text style={s.emptyTxt}>Belum ada MK yang terdaftar</Text></View>
+        ) : (
+          active.map(r => {
+            const sel = dropId === r.courseId;
+            return (
+              <TouchableOpacity key={r._id} style={[s.item, sel && s.itemDanger]} onPress={() => setDropId(sel ? null : r.courseId)}>
+                <View style={[s.codeTag, sel && { backgroundColor: C.g600 }]}><Text style={s.codeTxt}>{r.course?.code ?? '—'}</Text></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.itemName, sel && { textDecorationLine: 'line-through', color: C.textMuted }]}>{r.course?.name ?? '—'}</Text>
+                  <Text style={s.itemSub}>{r.course?.credits ?? 0} SKS · {r.course?.day ?? r.course?.schedule}</Text>
+                </View>
+                <View style={[s.chk, sel && { backgroundColor: C.g600, borderColor: C.g600 }]}>
+                  {sel && <Ionicons name="close" size={11} color={C.white} />}
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
+
+        <View style={{ marginTop: 12 }}>
+          <PrimaryButton label="Simpan Perubahan" onPress={handleSave} loading={loading} icon="save-outline" disabled={!addId && !dropId} />
         </View>
+        <View style={{ height: 32 }} />
       </ScrollView>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root:            { flex: 1, backgroundColor: C.background },
-  scroll:          { padding: 16 },
-  section:         { marginBottom: 20 },
-  sectionHeader:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  sectionDot:      { width: 3, height: 18, borderRadius: 2 },
-  sectionTitle:    { fontSize: 14, fontWeight: '800', color: C.text },
-  empty:           { fontSize: 13, color: C.textMuted, fontStyle: 'italic', paddingVertical: 8 },
-  item:            { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.surface, borderRadius: 13, padding: 13, marginBottom: 8, borderWidth: 1.5, borderColor: C.borderLight },
-  itemActive:      { borderColor: C.primary, backgroundColor: C.primaryPale },
-  itemDanger:      { borderColor: C.borderLight },
-  itemDangerActive:{ borderColor: C.error, backgroundColor: C.errorBg + '40' },
-  itemLeft:        { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  itemName:        { fontSize: 13, fontWeight: '700', color: C.text },
-  itemSub:         { fontSize: 11, color: C.textMuted, marginTop: 2 },
-  codeBox:         { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, flexShrink: 0 },
-  codeBoxTxt:      { fontSize: 11, fontWeight: '700' },
-  checkCircle:     { width: 24, height: 24, borderRadius: 12, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  summary:         { backgroundColor: C.surface, borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: C.border },
-  sumTitle:        { fontSize: 12, fontWeight: '800', color: C.text, marginBottom: 8 },
-  sumAdd:          { fontSize: 13, color: C.success, marginBottom: 4 },
-  sumDrop:         { fontSize: 13, color: C.error },
-  btnWrap:         { marginBottom: 24 },
+  root:        { flex: 1, backgroundColor: C.bg },
+  scroll:      { padding: 16 },
+  summary:     { backgroundColor: C.ink, borderRadius: R.lg, padding: 14, marginBottom: 12, gap: 6 },
+  summaryHead: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.5)', marginBottom: 2 },
+  summaryAdd:  { fontSize: 12, color: 'rgba(255,255,255,0.9)' },
+  summaryDrop: { fontSize: 12, color: 'rgba(255,255,255,0.55)', textDecorationLine: 'line-through' },
+  sectionTitle:{ fontSize: 13, fontWeight: '700', color: C.text, marginTop: 16, marginBottom: 8 },
+  item:        { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.surface, borderRadius: R.md, padding: 12, marginBottom: 6, borderWidth: 1.5, borderColor: C.border, ...SH.xs },
+  itemActive:  { borderColor: C.ink },
+  itemDanger:  { borderColor: C.g400 },
+  codeTag:     { backgroundColor: C.ink, borderRadius: R.xs, paddingHorizontal: 7, paddingVertical: 3 },
+  codeTxt:     { fontSize: 9, fontWeight: '700', color: C.white },
+  itemName:    { fontSize: 12, fontWeight: '600', color: C.text },
+  itemSub:     { fontSize: 10, color: C.textMuted, marginTop: 1 },
+  chk:         { width: 20, height: 20, borderRadius: R.xs, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  chkActive:   { backgroundColor: C.ink, borderColor: C.ink },
+  emptyRow:    { backgroundColor: C.surface, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: C.border, alignItems: 'center', marginBottom: 6 },
+  emptyTxt:    { fontSize: 12, color: C.textMuted, fontStyle: 'italic' },
 });

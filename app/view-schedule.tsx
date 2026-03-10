@@ -1,17 +1,12 @@
-import { View, Text, SectionList, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, SectionList, StyleSheet } from 'react-native';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useAuth } from '../context/AuthContext';
-import { PageHeader, EmptyState, LoadingScreen, GoldChip } from '../components/ui';
-import C from '../constants/Colors';
+import { PageHeader, EmptyState, LoadingScreen } from '../components/ui';
 import { Ionicons } from '@expo/vector-icons';
+import C, { SH, R } from '../constants/Colors';
 
 const DAYS = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-
-const DAY_COLOR: Record<string, string> = {
-  Senin: C.primary, Selasa: C.primaryMid, Rabu: '#0F766E',
-  Kamis: C.accent, Jumat: '#7C3AED', Sabtu: '#9D174D',
-};
 
 export default function ViewScheduleScreen() {
   const { user } = useAuth();
@@ -19,19 +14,21 @@ export default function ViewScheduleScreen() {
 
   if (!scheds) return <LoadingScreen />;
 
-  const today = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][new Date().getDay()];
+  const todayStr = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][new Date().getDay()];
 
-  const grouped = DAYS.map(day => ({
-    title: day,
-    data: scheds.filter(s => s.day === day).sort((a, b) => a.time.localeCompare(b.time)),
-  })).filter(g => g.data.length > 0);
+  const grouped = DAYS
+    .map(day => ({
+      title: day, isToday: day === todayStr,
+      data: scheds.filter(s => s.day === day).sort((a,b) => a.time.localeCompare(b.time)),
+    }))
+    .filter(g => g.data.length > 0);
 
   return (
     <View style={s.root}>
-      <PageHeader title="Jadwal Kuliah" subtitle={`${scheds.length} sesi terjadwal`} />
+      <PageHeader title="Jadwal Kuliah" subtitle={`${scheds.length} sesi`} showBack={false} />
 
       {grouped.length === 0
-        ? <EmptyState icon="calendar-outline" title="Jadwal Kosong" subtitle="Belum ada jadwal kuliah yang tersedia" />
+        ? <EmptyState icon="calendar-outline" title="Jadwal Kosong" subtitle="Daftarkan mata kuliah terlebih dahulu" />
         : (
           <SectionList
             sections={grouped}
@@ -39,49 +36,46 @@ export default function ViewScheduleScreen() {
             contentContainerStyle={s.list}
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={false}
-            renderSectionHeader={({ section: { title } }) => {
-              const isToday = title === today;
-              const color = DAY_COLOR[title] ?? C.primary;
-              return (
-                <View style={s.dayHeader}>
-                  <View style={[s.dayDot, { backgroundColor: color }]} />
-                  <Text style={[s.dayTitle, { color }]}>{title}</Text>
-                  {isToday && (
-                    <View style={s.todayChip}>
-                      <Text style={s.todayTxt}>Hari Ini</Text>
-                    </View>
-                  )}
+            renderSectionHeader={({ section }) => (
+              <View style={s.dayHead}>
+                <View style={[s.dayBar, section.isToday && s.dayBarToday]} />
+                <Text style={[s.dayName, section.isToday && s.dayNameToday]}>{section.title}</Text>
+                {section.isToday && <View style={s.todayPill}><Text style={s.todayTxt}>Hari Ini</Text></View>}
+                <Text style={s.dayCount}>{section.data.length} sesi</Text>
+              </View>
+            )}
+            renderItem={({ item, index, section }) => (
+              <View style={[
+                s.card,
+                index === 0 && s.cardFirst,
+                index === section.data.length - 1 && s.cardLast,
+                section.isToday && s.cardToday,
+                index > 0 && { borderTopWidth: 1, borderTopColor: C.border },
+              ]}>
+                {/* Time column */}
+                <View style={s.timeCol}>
+                  <Text style={s.t1}>{item.time.split('-')[0]?.trim()}</Text>
+                  <View style={s.timeDash} />
+                  <Text style={s.t2}>{item.time.split('-')[1]?.trim()}</Text>
                 </View>
-              );
-            }}
-            renderItem={({ item, section }) => {
-              const color = DAY_COLOR[section.title] ?? C.primary;
-              return (
-                <View style={s.card}>
-                  <View style={[s.timeBar, { backgroundColor: color }]}>
-                    <Ionicons name="time-outline" size={14} color="#FFF" />
-                    <Text style={s.timeTxt}>{item.time}</Text>
+                <View style={s.vLine} />
+                {/* Content */}
+                <View style={s.body}>
+                  <View style={s.bodyTop}>
+                    <View style={s.codeTag}><Text style={s.codeTxt}>{item.course?.code ?? '—'}</Text></View>
+                    <Text style={s.sksTxt}>{item.course?.credits ?? 0} SKS</Text>
                   </View>
-                  <View style={s.cardBody}>
-                    <View style={s.codeRow}>
-                      <GoldChip label={item.course?.code ?? '—'} />
-                      <Text style={s.sks}>{item.course?.credits ?? 0} SKS</Text>
-                    </View>
-                    <Text style={s.courseName}>{item.course?.name ?? 'Mata Kuliah'}</Text>
-                    <View style={s.infoRow}>
-                      <View style={s.infoChip}>
-                        <Ionicons name="location-outline" size={12} color={C.textMuted} />
-                        <Text style={s.infoTxt}>{item.room}</Text>
-                      </View>
-                      <View style={s.infoChip}>
-                        <Ionicons name="person-outline" size={12} color={C.textMuted} />
-                        <Text style={s.infoTxt} numberOfLines={1}>{item.course?.lecturer ?? '—'}</Text>
-                      </View>
-                    </View>
+                  <Text style={s.courseName} numberOfLines={2}>{item.course?.name ?? '—'}</Text>
+                  <View style={s.meta}>
+                    <Ionicons name="location-outline" size={10} color={C.textMuted} />
+                    <Text style={s.metaTxt}>{item.room}</Text>
+                    <Text style={s.dot}>·</Text>
+                    <Ionicons name="person-outline" size={10} color={C.textMuted} />
+                    <Text style={s.metaTxt} numberOfLines={1}>{item.course?.lecturer ?? '—'}</Text>
                   </View>
                 </View>
-              );
-            }}
+              </View>
+            )}
           />
         )
       }
@@ -90,21 +84,36 @@ export default function ViewScheduleScreen() {
 }
 
 const s = StyleSheet.create({
-  root:       { flex: 1, backgroundColor: C.background },
-  list:       { padding: 16, paddingBottom: 24 },
-  dayHeader:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 8 },
-  dayDot:     { width: 8, height: 8, borderRadius: 4 },
-  dayTitle:   { fontSize: 14, fontWeight: '800', letterSpacing: -0.2 },
-  todayChip:  { backgroundColor: C.accentLight, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: C.accentBright + '50' },
-  todayTxt:   { fontSize: 10, fontWeight: '700', color: C.accent },
-  card:       { backgroundColor: C.surface, borderRadius: 14, overflow: 'hidden', marginBottom: 8, borderWidth: 1, borderColor: C.borderLight, shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 },
-  timeBar:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 7 },
-  timeTxt:    { fontSize: 13, fontWeight: '700', color: '#FFF' },
-  cardBody:   { padding: 14 },
-  codeRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  sks:        { fontSize: 11, color: C.textMuted, fontWeight: '600' },
-  courseName: { fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 10 },
-  infoRow:    { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  infoChip:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.background, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
-  infoTxt:    { fontSize: 11, color: C.textSub, maxWidth: 120 },
+  root:        { flex: 1, backgroundColor: C.bg },
+  list:        { padding: 20, paddingBottom: 32 },
+
+  dayHead:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 8 },
+  dayBar:      { width: 3, height: 13, borderRadius: 2, backgroundColor: C.g300 },
+  dayBarToday: { backgroundColor: C.ink },
+  dayName:     { fontSize: 12, fontWeight: '700', color: C.textMuted },
+  dayNameToday:{ color: C.text },
+  todayPill:   { backgroundColor: C.ink, borderRadius: R.xs, paddingHorizontal: 6, paddingVertical: 2 },
+  todayTxt:    { fontSize: 8, fontWeight: '700', color: C.white, letterSpacing: 0.3 },
+  dayCount:    { flex: 1, textAlign: 'right', fontSize: 10, color: C.textMuted },
+
+  card:        { backgroundColor: C.surface, flexDirection: 'row', alignItems: 'stretch', padding: 12, borderLeftWidth: 1, borderRightWidth: 1, borderColor: C.border },
+  cardFirst:   { borderTopWidth: 1, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg },
+  cardLast:    { borderBottomWidth: 1, borderBottomLeftRadius: R.lg, borderBottomRightRadius: R.lg, ...SH.xs, marginBottom: 4 },
+  cardToday:   { borderLeftColor: C.ink, borderLeftWidth: 2 },
+
+  timeCol:     { width: 44, alignItems: 'center', gap: 2 },
+  t1:          { fontSize: 11, fontWeight: '700', color: C.text },
+  timeDash:    { width: 12, height: 1, backgroundColor: C.g300 },
+  t2:          { fontSize: 9, color: C.textMuted },
+  vLine:       { width: 1, backgroundColor: C.border, marginHorizontal: 10 },
+
+  body:        { flex: 1 },
+  bodyTop:     { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 4 },
+  codeTag:     { backgroundColor: C.g900, borderRadius: R.xs, paddingHorizontal: 6, paddingVertical: 2 },
+  codeTxt:     { fontSize: 8, fontWeight: '700', color: C.white, letterSpacing: 0.3 },
+  sksTxt:      { fontSize: 9, color: C.textMuted },
+  courseName:  { fontSize: 12, fontWeight: '600', color: C.text, marginBottom: 5, lineHeight: 17 },
+  meta:        { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+  metaTxt:     { fontSize: 10, color: C.textMuted, maxWidth: 100 },
+  dot:         { fontSize: 9, color: C.g400 },
 });

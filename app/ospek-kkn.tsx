@@ -3,23 +3,21 @@ import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useAuth } from '../context/AuthContext';
 import { PageHeader, EmptyState, LoadingScreen } from '../components/ui';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import C from '../constants/Colors';
+import C, { SH, R } from '../constants/Colors';
 
-type OspekType = 'ospek' | 'kkn' | 'kku';
-type OspekStatus = 'completed' | 'in_progress' | 'not_started';
+type OType = 'ospek'|'kkn'|'kku';
+type OStatus = 'completed'|'in_progress'|'not_started';
 
-const TYPE_CONFIG: Record<OspekType, { label: string; icon: keyof typeof Ionicons.glyphMap; colors: [string,string] }> = {
-  ospek: { label: 'OSPEK',       icon: 'flag-outline',   colors: [C.primary,     C.primaryMid] },
-  kkn:   { label: 'KKN',         icon: 'earth-outline',  colors: [C.accent,      '#7A5C00'] },
-  kku:   { label: 'KKU',         icon: 'people-outline', colors: ['#0F766E',     '#064E3B'] },
+const TYPE_CFG: Record<OType,{ label:string; icon:keyof typeof Ionicons.glyphMap; desc:string }> = {
+  ospek: { label:'OSPEK', icon:'flag-outline',   desc:'Orientasi Studi dan Pengenalan Kampus' },
+  kkn:   { label:'KKN',   icon:'earth-outline',  desc:'Kuliah Kerja Nyata' },
+  kku:   { label:'KKU',   icon:'people-outline', desc:'Kuliah Kerja Usaha' },
 };
-
-const STATUS_CONFIG: Record<OspekStatus, { label: string; color: string; bg: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  completed:   { label: 'Selesai',          color: C.success, bg: C.successBg, icon: 'checkmark-circle' },
-  in_progress: { label: 'Sedang Berjalan',  color: C.warning, bg: C.warningBg, icon: 'time' },
-  not_started: { label: 'Belum Dimulai',    color: C.textMuted, bg: C.borderLight, icon: 'ellipse-outline' },
+const STATUS_CFG: Record<OStatus,{ label:string; icon:keyof typeof Ionicons.glyphMap }> = {
+  completed:   { label:'Selesai',       icon:'checkmark-circle' },
+  in_progress: { label:'Berlangsung',   icon:'time-outline' },
+  not_started: { label:'Belum Dimulai', icon:'ellipse-outline' },
 };
 
 export default function OspekKknScreen() {
@@ -27,55 +25,70 @@ export default function OspekKknScreen() {
   const items = useQuery(api.ospekKkn.listByUser, user ? { userId: user._id as any } : 'skip');
 
   if (!items) return <LoadingScreen />;
+  const done = items.filter(i => i.status === 'completed').length;
 
   return (
     <View style={s.root}>
-      <PageHeader title="Ospek, KKN & KKU" subtitle="Status kegiatan kemahasiswaan" />
+      <PageHeader title="Ospek, KKN & KKU" subtitle={`${done}/3 kegiatan selesai`} />
 
       {items.length === 0
-        ? <EmptyState icon="people-outline" title="Belum Ada Data" subtitle="Data Ospek, KKN, dan KKU Anda belum tersedia" />
+        ? <EmptyState icon="people-outline" title="Belum Ada Data" subtitle="Data kegiatan kemahasiswaan belum tersedia" />
         : (
           <FlatList
             data={items}
             keyExtractor={i => i._id}
             contentContainerStyle={s.list}
             showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              <View style={s.progress}>
+                <Text style={s.progTitle}>Progress Kegiatan Wajib</Text>
+                <View style={s.track}><View style={[s.fill, { width: `${(done/3)*100}%` as any }]} /></View>
+                <View style={s.steps}>
+                  {(['ospek','kkn','kku'] as OType[]).map((type, i) => {
+                    const item = items.find(x => x.type === type);
+                    const ok   = item?.status === 'completed';
+                    return (
+                      <View key={type} style={s.step}>
+                        <View style={[s.stepDot, ok && s.stepDotDone]}>
+                          {ok ? <Ionicons name="checkmark" size={10} color={C.white} /> : <Text style={s.stepNum}>{i+1}</Text>}
+                        </View>
+                        <Text style={[s.stepLbl, ok && { color: C.text }]}>{TYPE_CFG[type].label}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            }
             renderItem={({ item }) => {
-              const tc = TYPE_CONFIG[item.type as OspekType] ?? TYPE_CONFIG.ospek;
-              const sc = STATUS_CONFIG[item.status as OspekStatus] ?? STATUS_CONFIG.not_started;
+              const tc = TYPE_CFG[item.type as OType] ?? TYPE_CFG.ospek;
+              const sc = STATUS_CFG[item.status as OStatus] ?? STATUS_CFG.not_started;
+              const ok = item.status === 'completed';
               return (
                 <View style={s.card}>
-                  {/* Header strip */}
-                  <LinearGradient colors={tc.colors} style={s.cardHeader} start={{x:0,y:0}} end={{x:1,y:0}}>
-                    <View style={s.typeIcon}>
-                      <Ionicons name={tc.icon} size={18} color={C.accentBright} />
+                  <View style={s.cardHead}>
+                    <View style={[s.typeIcon, ok && s.typeIconDone]}>
+                      <Ionicons name={tc.icon} size={16} color={ok ? C.white : C.textMuted} />
                     </View>
-                    <Text style={s.typeLabel}>{tc.label}</Text>
-                    <View style={[s.statusChip, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-                      <Ionicons name={sc.icon} size={12} color="#FFF" />
-                      <Text style={s.statusChipTxt}>{sc.label}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.typeLabel}>{tc.label}</Text>
+                      <Text style={s.typeDesc}>{tc.desc}</Text>
                     </View>
-                  </LinearGradient>
-
-                  {/* Body */}
+                    <View style={[s.statusChip, ok && s.statusDone]}>
+                      <Ionicons name={sc.icon} size={11} color={ok ? C.white : C.textMuted} />
+                      <Text style={[s.statusTxt, ok && { color: C.white }]}>{sc.label}</Text>
+                    </View>
+                  </View>
                   <View style={s.cardBody}>
-                    <View style={s.infoRow}>
-                      <View style={s.infoItem}>
-                        <Text style={s.infoLabel}>Tahun</Text>
-                        <Text style={s.infoValue}>{item.year}</Text>
-                      </View>
-                      <View style={[s.statusPill, { backgroundColor: sc.bg }]}>
-                        <View style={[s.statusDot, { backgroundColor: sc.color }]} />
-                        <Text style={[s.statusPillTxt, { color: sc.color }]}>{sc.label}</Text>
-                      </View>
+                    <View style={s.metaRow}>
+                      <Ionicons name="calendar-outline" size={12} color={C.textMuted} />
+                      <Text style={s.metaTxt}>Tahun {item.year}</Text>
                     </View>
-
-                    {item.notes ? (
-                      <View style={s.notesBox}>
-                        <Ionicons name="document-text-outline" size={13} color={C.textMuted} />
+                    {item.notes && (
+                      <View style={s.notes}>
+                        <Ionicons name="document-text-outline" size={11} color={C.textMuted} />
                         <Text style={s.notesTxt}>{item.notes}</Text>
                       </View>
-                    ) : null}
+                    )}
                   </View>
                 </View>
               );
@@ -88,22 +101,32 @@ export default function OspekKknScreen() {
 }
 
 const s = StyleSheet.create({
-  root:          { flex: 1, backgroundColor: C.background },
-  list:          { padding: 16, gap: 12 },
-  card:          { backgroundColor: C.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.borderLight, shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.07, shadowRadius: 10, elevation: 4 },
-  cardHeader:    { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10 },
-  typeIcon:      { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  typeLabel:     { fontSize: 16, fontWeight: '900', color: '#FFF', letterSpacing: 0.5, flex: 1 },
-  statusChip:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
-  statusChipTxt: { fontSize: 10, fontWeight: '700', color: '#FFF' },
-  cardBody:      { padding: 14 },
-  infoRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  infoItem:      {},
-  infoLabel:     { fontSize: 10, color: C.textMuted, marginBottom: 2 },
-  infoValue:     { fontSize: 16, fontWeight: '800', color: C.text },
-  statusPill:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  statusDot:     { width: 6, height: 6, borderRadius: 3 },
-  statusPillTxt: { fontSize: 11, fontWeight: '700' },
-  notesBox:      { flexDirection: 'row', gap: 8, backgroundColor: C.background, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: C.borderLight },
-  notesTxt:      { fontSize: 12, color: C.textSub, flex: 1, lineHeight: 18 },
+  root:       { flex: 1, backgroundColor: C.bg },
+  list:       { padding: 16, gap: 8, paddingBottom: 24 },
+
+  progress:   { backgroundColor: C.surface, borderRadius: R.lg, padding: 16, marginBottom: 6, borderWidth: 1, borderColor: C.border, ...SH.xs },
+  progTitle:  { fontSize: 12, fontWeight: '700', color: C.text, marginBottom: 12 },
+  track:      { height: 3, backgroundColor: C.g200, borderRadius: 2, overflow: 'hidden', marginBottom: 14 },
+  fill:       { height: 3, backgroundColor: C.ink, borderRadius: 2 },
+  steps:      { flexDirection: 'row', justifyContent: 'space-around' },
+  step:       { alignItems: 'center', gap: 5 },
+  stepDot:    { width: 28, height: 28, borderRadius: R.sm, backgroundColor: C.g100, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.border },
+  stepDotDone:{ backgroundColor: C.ink, borderColor: C.ink },
+  stepNum:    { fontSize: 11, fontWeight: '700', color: C.textMuted },
+  stepLbl:    { fontSize: 9, color: C.textMuted, fontWeight: '600', letterSpacing: 0.3 },
+
+  card:        { backgroundColor: C.surface, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, overflow: 'hidden', ...SH.xs },
+  cardHead:    { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  typeIcon:    { width: 36, height: 36, borderRadius: R.sm, backgroundColor: C.g100, alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderWidth: 1, borderColor: C.border },
+  typeIconDone:{ backgroundColor: C.ink, borderColor: C.ink },
+  typeLabel:   { fontSize: 14, fontWeight: '700', color: C.text },
+  typeDesc:    { fontSize: 10, color: C.textMuted, marginTop: 1 },
+  statusChip:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.g100, borderRadius: R.xs, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: C.border },
+  statusDone:  { backgroundColor: C.ink, borderColor: C.ink },
+  statusTxt:   { fontSize: 9, fontWeight: '600', color: C.textMuted },
+  cardBody:    { paddingHorizontal: 14, paddingBottom: 14, gap: 7 },
+  metaRow:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaTxt:     { fontSize: 11, color: C.textMuted },
+  notes:       { flexDirection: 'row', gap: 7, backgroundColor: C.g50, borderRadius: R.sm, padding: 9, borderWidth: 1, borderColor: C.border },
+  notesTxt:    { fontSize: 11, color: C.textMuted, flex: 1, lineHeight: 17 },
 });

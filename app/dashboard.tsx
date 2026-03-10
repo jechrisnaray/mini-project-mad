@@ -1,201 +1,214 @@
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Dimensions, StatusBar,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import C from '../constants/Colors';
+import { LoadingScreen } from '../components/ui';
+import C, { R, SH } from '../constants/Colors';
 
-const { width } = Dimensions.get('window');
-const MCOL = (width - 36 - 24) / 4;
-
-type Menu = { name: string; icon: keyof typeof Ionicons.glyphMap; route: string; color: string; roles: string[] };
-const MENUS: Menu[] = [
-  { name: 'Registrasi',  icon: 'clipboard-outline',      route: '/registration',       color: C.primaryMid,  roles: ['student'] },
-  { name: 'Add/Drop',    icon: 'swap-horizontal-outline', route: '/add-drop',           color: '#0F766E',     roles: ['student'] },
-  { name: 'Drop MK',     icon: 'trash-outline',           route: '/drop-subject',       color: C.error,       roles: ['student'] },
-  { name: 'Nilai',       icon: 'school-outline',          route: '/view-grade',         color: C.accent,      roles: ['student','admin'] },
-  { name: 'Jadwal',      icon: 'calendar-outline',        route: '/view-schedule',      color: C.primary,     roles: ['student'] },
-  { name: 'Eval. Dosen', icon: 'star-outline',            route: '/teacher-evaluation', color: '#7C3AED',     roles: ['student'] },
-  { name: 'Ospek/KKN',  icon: 'people-outline',           route: '/ospek-kkn',          color: '#065F46',     roles: ['student'] },
-  { name: 'Biaya SMT',   icon: 'cash-outline',            route: '/semester-cost',      color: '#9D174D',     roles: ['student'] },
-  { name: 'Input Nilai', icon: 'create-outline',          route: '/input-grade',        color: C.primary,     roles: ['admin'] },
-];
-
+// Bobot nilai untuk kalkulasi IPK
 const GW: Record<string, number> = { A:4,'A-':3.7,'B+':3.3,B:3,'B-':2.7,'C+':2.3,C:2,D:1,E:0 };
 
-const ANN_STYLE: Record<string, {bg:string;c:string;icon:keyof typeof Ionicons.glyphMap}> = {
-  yellow: { bg: C.warningBg,  c: C.warning, icon: 'warning-outline' },
-  blue:   { bg: C.infoBg,     c: C.info,    icon: 'information-circle-outline' },
-  red:    { bg: C.errorBg,    c: C.error,   icon: 'alert-circle-outline' },
-  green:  { bg: C.successBg,  c: C.success, icon: 'checkmark-circle-outline' },
+// Menu layanan akademik
+const MENUS = [
+  { name:'Registrasi',  icon:'clipboard-outline',      route:'/registration',       roles:['student'] },
+  { name:'Add/Drop',    icon:'swap-horizontal-outline', route:'/add-drop',           roles:['student'] },
+  { name:'Drop MK',     icon:'trash-outline',           route:'/drop-subject',       roles:['student'] },
+  { name:'Nilai',       icon:'school-outline',          route:'/view-grade',         roles:['student','admin'] },
+  { name:'Jadwal',      icon:'calendar-outline',        route:'/view-schedule',      roles:['student'] },
+  { name:'Eval. Dosen', icon:'star-outline',            route:'/teacher-evaluation', roles:['student'] },
+  { name:'Ospek/KKN',  icon:'flag-outline',             route:'/ospek-kkn',          roles:['student'] },
+  { name:'Biaya SMT',  icon:'receipt-outline',          route:'/semester-cost',      roles:['student'] },
+  { name:'Input Nilai', icon:'create-outline',          route:'/input-grade',        roles:['admin'] },
+] as const;
+
+const DAYS = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const greet = () => {
+  const h = new Date().getHours();
+  return h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
 };
+const initials = (n: string) => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
 export default function DashboardScreen() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading } = useAuth();
 
   const regs   = useQuery(api.registrations.listByUser, user ? { userId: user._id as any } : 'skip');
   const grades = useQuery(api.grades.listByUser,         user ? { userId: user._id as any } : 'skip');
   const scheds = useQuery(api.scheadules.listByUser,     user ? { userId: user._id as any } : 'skip');
   const anns   = useQuery(api.announcements.list);
-  const seedAnn = useMutation(api.announcements.seed);
 
-  useEffect(() => { seedAnn().catch(() => {}); }, []);
-  useEffect(() => { if (!isLoading && !user) router.replace('/login'); }, [user, isLoading]);
+  useEffect(() => {
+    if (!isLoading && !user) router.replace('/login');
+  }, [user, isLoading]);
+
   if (isLoading || !user) return null;
+  if (!regs || !grades || !scheds) return <LoadingScreen />;
 
-  // Stats
-  const active   = regs?.filter(r => r.status === 'registered') ?? [];
+  // Kalkulasi statistik mahasiswa
+  const active   = regs.filter(r => r.status === 'registered');
   const totalSKS = active.reduce((s, r) => s + (r.course?.credits ?? 0), 0);
+  const maxSks   = user.maxSks ?? 24;
 
-  let ipk = '—';
-  if (grades?.length) {
+  let ipk = 0;
+  if (grades.length) {
     const wb = grades.reduce((s, g) => s + (GW[g.grade] ?? 0) * (g.course?.credits ?? 0), 0);
     const ws = grades.reduce((s, g) => s + (g.course?.credits ?? 0), 0);
-    if (ws > 0) ipk = (wb / ws).toFixed(2);
+    if (ws > 0) ipk = wb / ws;
   }
 
-  const today = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][new Date().getDay()];
-  const todayN = scheds?.filter(s => s.day === today).length ?? 0;
-
-  const menus = MENUS.filter(m => m.roles.includes(user.role));
-  const init  = (n: string) => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-
-  const handleLogout = () => Alert.alert('Konfirmasi', 'Yakin ingin keluar?', [
-    { text: 'Batal', style: 'cancel' },
-    { text: 'Keluar', style: 'destructive', onPress: async () => { await logout(); router.replace('/login'); } },
-  ]);
+  const todayStr    = DAYS[new Date().getDay()];
+  const todayScheds = scheds.filter(s => s.day === todayStr).sort((a, b) => a.time.localeCompare(b.time));
+  const menus       = MENUS.filter(m => (m.roles as readonly string[]).includes(user.role));
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={C.primary} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
 
-      {/* ── Header ─────────────────────────────────── */}
-      <LinearGradient colors={[C.primary, C.primaryMid]} style={s.header} start={{x:0,y:0}} end={{x:1,y:1}}>
-        <View style={s.hdecor1} />
-        <View style={s.hdecor2} />
-
+      {/* Header */}
+      <View style={s.header}>
         <View style={s.hrow}>
-          <View style={s.avatarBox}>
-            <Text style={s.avatarTxt}>{init(user.name)}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.greeting}>{greet()},</Text>
+            <Text style={s.name}>{user.name.split(' ')[0]} 👋</Text>
           </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.hWelcome}>Selamat datang 👋</Text>
-            <Text style={s.hName}>{user.name}</Text>
-            <View style={s.rolePill}>
-              <Text style={s.roleTxt}>{user.role === 'admin' ? '⚙ Administrator' : '🎓 Mahasiswa'}</Text>
-            </View>
-          </View>
-          <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color="rgba(255,255,255,0.85)" />
+          <TouchableOpacity style={s.avatarBtn} onPress={() => router.push('/profile' as any)}>
+            <Text style={s.avatarTxt}>{initials(user.name)}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Stats strip (student only) */}
+        {/* Statistik SKS/MK/IPK (khusus mahasiswa) */}
         {user.role === 'student' && (
-          <View style={s.statsBox}>
+          <View style={s.statsRow}>
             {[
-              { v: active.length, l: 'MK Aktif' },
-              { v: totalSKS,      l: 'Total SKS' },
-              { v: ipk,           l: 'IPK' },
-              { v: todayN,        l: 'Hari Ini' },
-            ].map((st, i, arr) => (
-              <View key={i} style={s.statItem}>
-                <Text style={s.statVal}>{st.v}</Text>
-                <Text style={s.statLbl}>{st.l}</Text>
-                {i < arr.length - 1 && <View style={s.statDivider} />}
+              { val: active.length,                         lbl: 'MK Aktif' },
+              { val: `${totalSKS}/${maxSks}`,               lbl: 'SKS' },
+              { val: ipk > 0 ? ipk.toFixed(2) : '–',       lbl: 'IPK' },
+              { val: todayScheds.length,                    lbl: 'Hari Ini' },
+            ].map((st, i) => (
+              <View key={i} style={s.statCard}>
+                <Text style={s.statVal}>{st.val}</Text>
+                <Text style={s.statLbl}>{st.lbl}</Text>
               </View>
             ))}
           </View>
         )}
-      </LinearGradient>
+      </View>
 
-      <ScrollView style={s.body} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
 
-        {/* ── Pengumuman (dari Convex) ─────────────── */}
-        <View style={s.section}>
-          <View style={s.secHeader}>
-            <View style={s.goldBar} />
-            <Text style={s.secTitle}>Pengumuman Kampus</Text>
+        {/* Banner masa aktif */}
+        {user.role === 'student' && (
+          <View style={s.banner}>
+            <Ionicons name="time-outline" size={15} color={C.textMuted} />
+            <Text style={s.bannerTxt}>Masa studi aktif hingga <Text style={{ fontWeight: '700', color: C.text }}>{user.activeUntil ?? '—'}</Text></Text>
           </View>
-          {!anns
-            ? <Text style={s.hint}>Memuat pengumuman...</Text>
-            : anns.length === 0
-              ? <Text style={s.hint}>Tidak ada pengumuman aktif.</Text>
-              : anns.map(a => {
-                  const st = ANN_STYLE[a.color] ?? ANN_STYLE.blue;
-                  return (
-                    <View key={a._id} style={s.annCard}>
-                      <View style={[s.annIcon, { backgroundColor: st.bg }]}>
-                        <Ionicons name={st.icon} size={16} color={st.c} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[s.annTitle, { color: st.c }]}>{a.title}</Text>
-                        <Text style={s.annMsg}>{a.message}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-        </View>
+        )}
 
-        {/* ── Menu Grid ────────────────────────────── */}
-        <View style={s.section}>
-          <View style={s.secHeader}>
-            <View style={s.goldBar} />
-            <Text style={s.secTitle}>Layanan Akademik</Text>
+        {/* Pengumuman */}
+        {anns && anns.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.secTitle}>Pengumuman</Text>
+            {anns.map(a => (
+              <View key={a._id} style={s.annCard}>
+                <Ionicons name="megaphone-outline" size={16} color={C.textSub} style={s.annIcon} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.annTitle}>{a.title}</Text>
+                  <Text style={s.annMsg}>{a.message}</Text>
+                </View>
+              </View>
+            ))}
           </View>
+        )}
+
+        {/* Jadwal hari ini */}
+        {user.role === 'student' && (
+          <View style={s.section}>
+            <View style={s.secRow}>
+              <Text style={s.secTitle}>Jadwal {todayStr}</Text>
+              <TouchableOpacity onPress={() => router.push('/view-schedule' as any)}>
+                <Text style={s.seeAll}>Semua →</Text>
+              </TouchableOpacity>
+            </View>
+            {todayScheds.length === 0 ? (
+              <View style={s.emptyCard}><Text style={s.emptyTxt}>Tidak ada jadwal hari ini</Text></View>
+            ) : (
+              todayScheds.map(sc => (
+                <View key={sc._id} style={s.schedCard}>
+                  <View style={s.schedTime}>
+                    <Text style={s.schedStart}>{sc.time.split('-')[0]}</Text>
+                    <Text style={s.schedEnd}>{sc.time.split('-')[1]}</Text>
+                  </View>
+                  <View style={{ width: 1, height: 30, backgroundColor: C.border }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.schedName} numberOfLines={1}>{sc.course?.name ?? '—'}</Text>
+                    <Text style={s.schedRoom}>{sc.room} · {sc.course?.lecturer}</Text>
+                  </View>
+                  <View style={s.schedCode}><Text style={s.schedCodeTxt}>{sc.course?.code}</Text></View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {/* Menu layanan */}
+        <View style={s.section}>
+          <Text style={s.secTitle}>Layanan Akademik</Text>
           <View style={s.grid}>
             {menus.map((m, i) => (
-              <TouchableOpacity key={i} style={s.menuCard} onPress={() => router.push(m.route as any)} activeOpacity={0.75}>
-                <View style={[s.menuIcon, { backgroundColor: m.color }]}>
-                  <Ionicons name={m.icon} size={22} color={C.accentBright} />
-                </View>
+              <TouchableOpacity key={i} style={s.menuCard} onPress={() => router.push(m.route as any)}>
+                <View style={s.menuIcon}><Ionicons name={m.icon as any} size={20} color={C.text} /></View>
                 <Text style={s.menuLbl}>{m.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        <View style={{ height: 24 }} />
       </ScrollView>
     </View>
   );
 }
 
+const PT = (StatusBar.currentHeight ?? 44) + 8;
+const MCOL = '47.5%';
+
 const s = StyleSheet.create({
-  root:       { flex: 1, backgroundColor: C.background },
-  header:     { paddingTop: (StatusBar.currentHeight ?? 44) + 12, paddingBottom: 22, paddingHorizontal: 18, overflow: 'hidden' },
-  hdecor1:    { position:'absolute', width:200, height:200, borderRadius:100, backgroundColor:'rgba(212,160,23,0.10)', top:-70, right:-50 },
-  hdecor2:    { position:'absolute', width:90,  height:90,  borderRadius:45,  backgroundColor:'rgba(212,160,23,0.07)', bottom:-30, left:40 },
-  hrow:       { flexDirection:'row', alignItems:'center', marginBottom: 16 },
-  avatarBox:  { width:48, height:48, borderRadius:15, backgroundColor:C.accentBright, alignItems:'center', justifyContent:'center', shadowColor:C.accent, shadowOffset:{width:0,height:3}, shadowOpacity:0.4, shadowRadius:6, elevation:4 },
-  avatarTxt:  { fontSize:17, fontWeight:'900', color:C.primary },
-  hWelcome:   { fontSize:11, color:'rgba(255,255,255,0.6)', marginBottom:1 },
-  hName:      { fontSize:17, fontWeight:'800', color:'#FFF' },
-  rolePill:   { marginTop:3, backgroundColor:'rgba(212,160,23,0.18)', borderRadius:20, paddingHorizontal:8, paddingVertical:2, alignSelf:'flex-start', borderWidth:1, borderColor:'rgba(212,160,23,0.3)' },
-  roleTxt:    { fontSize:10, color:C.accentLight, fontWeight:'600' },
-  logoutBtn:  { width:38, height:38, borderRadius:12, backgroundColor:'rgba(255,255,255,0.12)', alignItems:'center', justifyContent:'center' },
-  statsBox:   { flexDirection:'row', backgroundColor:'rgba(255,255,255,0.10)', borderRadius:14, padding:14, borderWidth:1, borderColor:'rgba(255,255,255,0.14)' },
-  statItem:   { flex:1, alignItems:'center', position:'relative' },
-  statVal:    { fontSize:19, fontWeight:'900', color:'#FFF' },
-  statLbl:    { fontSize:10, color:'rgba(255,255,255,0.58)', marginTop:2 },
-  statDivider:{ position:'absolute', right:0, top:4, width:1, height:28, backgroundColor:'rgba(255,255,255,0.18)' },
-  body:       { flex:1 },
-  section:    { paddingHorizontal:18, paddingTop:20 },
-  secHeader:  { flexDirection:'row', alignItems:'center', gap:8, marginBottom:12 },
-  goldBar:    { width:3, height:18, borderRadius:2, backgroundColor:C.accentBright },
-  secTitle:   { fontSize:14, fontWeight:'800', color:C.text },
-  hint:       { fontSize:13, color:C.textMuted, fontStyle:'italic' },
-  annCard:    { backgroundColor:C.surface, borderRadius:14, padding:14, flexDirection:'row', gap:12, alignItems:'flex-start', marginBottom:8, borderWidth:1, borderColor:C.borderLight, shadowColor:C.primary, shadowOffset:{width:0,height:2}, shadowOpacity:0.05, shadowRadius:6, elevation:2 },
-  annIcon:    { width:34, height:34, borderRadius:10, alignItems:'center', justifyContent:'center', flexShrink:0 },
-  annTitle:   { fontSize:12, fontWeight:'700', marginBottom:2 },
-  annMsg:     { fontSize:12, color:C.textSub, lineHeight:18 },
-  grid:       { flexDirection:'row', flexWrap:'wrap', gap:10 },
-  menuCard:   { width:MCOL, backgroundColor:C.surface, borderRadius:14, padding:11, alignItems:'center', borderWidth:1, borderColor:C.borderLight, shadowColor:C.primary, shadowOffset:{width:0,height:2}, shadowOpacity:0.06, shadowRadius:8, elevation:3 },
-  menuIcon:   { width:46, height:46, borderRadius:13, alignItems:'center', justifyContent:'center', marginBottom:7 },
-  menuLbl:    { fontSize:10, fontWeight:'600', color:C.textSub, textAlign:'center', lineHeight:13 },
+  root:       { flex: 1, backgroundColor: C.bg },
+  header:     { backgroundColor: C.surface, paddingTop: PT, paddingBottom: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: C.border },
+  hrow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  greeting:   { fontSize: 12, color: C.textMuted },
+  name:       { fontSize: 22, fontWeight: '700', color: C.text },
+  avatarBtn:  { width: 44, height: 44, borderRadius: 13, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
+  avatarTxt:  { fontSize: 14, fontWeight: '800', color: C.white },
+  statsRow:   { flexDirection: 'row', gap: 8 },
+  statCard:   { flex: 1, backgroundColor: C.g100, borderRadius: 12, padding: 10, alignItems: 'center', gap: 2 },
+  statVal:    { fontSize: 18, fontWeight: '800', color: C.text },
+  statLbl:    { fontSize: 9, color: C.textMuted, textAlign: 'center' },
+  banner:     { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 20, marginBottom: 0, backgroundColor: C.surface, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.border },
+  bannerTxt:  { fontSize: 12, color: C.textMuted, flex: 1 },
+  section:    { paddingHorizontal: 20, paddingTop: 20 },
+  secTitle:   { fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 10 },
+  secRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  seeAll:     { fontSize: 12, color: C.textMuted, fontWeight: '600' },
+  annCard:    { flexDirection: 'row', gap: 12, backgroundColor: C.surface, borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: C.border },
+  annIcon:    { marginTop: 2 },
+  annTitle:   { fontSize: 12, fontWeight: '700', color: C.text, marginBottom: 2 },
+  annMsg:     { fontSize: 12, color: C.textMuted, lineHeight: 18 },
+  schedCard:  { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.border, gap: 10 },
+  schedTime:  { alignItems: 'center', width: 46 },
+  schedStart: { fontSize: 12, fontWeight: '700', color: C.text },
+  schedEnd:   { fontSize: 10, color: C.textMuted },
+  schedName:  { fontSize: 13, fontWeight: '600', color: C.text, marginBottom: 2 },
+  schedRoom:  { fontSize: 11, color: C.textMuted },
+  schedCode:  { backgroundColor: C.ink, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 3 },
+  schedCodeTxt:{ fontSize: 9, fontWeight: '700', color: C.white },
+  emptyCard:  { backgroundColor: C.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
+  emptyTxt:   { fontSize: 13, color: C.textMuted },
+  grid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  menuCard:   { width: MCOL, backgroundColor: C.surface, borderRadius: 12, padding: 14, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: C.border, ...SH.xs },
+  menuIcon:   { width: 40, height: 40, borderRadius: 10, backgroundColor: C.g100, alignItems: 'center', justifyContent: 'center' },
+  menuLbl:    { fontSize: 12, fontWeight: '600', color: C.textSub, textAlign: 'center', lineHeight: 16 },
 });

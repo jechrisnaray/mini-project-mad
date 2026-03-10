@@ -1,105 +1,64 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, StatusBar } from 'react-native';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { useAuth } from '../context/AuthContext';
-import { PageHeader, Badge, GoldChip, EmptyState, LoadingScreen } from '../components/ui';
-import C from '../constants/Colors';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
+import { PageHeader } from '../components/ui';
+import C, { R, SH } from '../constants/Colors';
+
+const MENUS = [
+  { name: 'Registrasi MK',   icon: 'clipboard-outline',       route: '/registration',       desc: 'Daftar mata kuliah baru' },
+  { name: 'Add / Drop MK',   icon: 'swap-horizontal-outline',  route: '/add-drop',           desc: 'Tambah atau hapus MK' },
+  { name: 'Drop MK',         icon: 'trash-outline',            route: '/drop-subject',       desc: 'Batalkan MK yang aktif' },
+  { name: 'Lihat Nilai',     icon: 'school-outline',           route: '/view-grade',         desc: 'Transkrip & IPK kamu' },
+  { name: 'Jadwal Kuliah',   icon: 'calendar-outline',         route: '/view-schedule',      desc: 'Jadwal mingguan' },
+  { name: 'Evaluasi Dosen',  icon: 'star-outline',             route: '/teacher-evaluation', desc: 'Beri penilaian dosen' },
+  { name: 'Ospek & KKN',     icon: 'flag-outline',             route: '/ospek-kkn',          desc: 'Status kegiatan wajib' },
+  { name: 'Biaya Semester',  icon: 'receipt-outline',          route: '/semester-cost',      desc: 'Rincian tagihan' },
+] as const;
 
 export default function RegistrationScreen() {
   const { user } = useAuth();
-  const allCourses = useQuery(api.courses.list);
-  const myRegs     = useQuery(api.registrations.listByUser, user ? { userId: user._id as any } : 'skip');
-  const registerMut = useMutation(api.registrations.register);
 
-  if (!allCourses || !myRegs) return <LoadingScreen />;
-
-  const registeredIds = new Set(
-    myRegs.filter(r => r.status === 'registered').map(r => r.courseId)
-  );
-  const available = allCourses.filter(c => !registeredIds.has(c._id));
-
-  const handleRegister = (courseId: string, name: string) => {
-    Alert.alert('Konfirmasi', `Daftar mata kuliah "${name}"?`, [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Daftar', onPress: async () => {
-          try {
-            await registerMut({ userId: user!._id as any, courseId: courseId as any });
-            Alert.alert('Berhasil', `Berhasil mendaftar ${name}`);
-          } catch (e: any) { Alert.alert('Gagal', e?.message ?? 'Terjadi kesalahan'); }
-        }
-      },
-    ]);
-  };
+  // Susun 2 kolom
+  const pairs: (typeof MENUS[number] | null)[][] = [];
+  for (let i = 0; i < MENUS.length; i += 2) {
+    pairs.push([MENUS[i], MENUS[i + 1] ?? null]);
+  }
 
   return (
     <View style={s.root}>
-      <PageHeader title="Registrasi Mata Kuliah" subtitle={`${available.length} MK tersedia`} />
-
-      {available.length === 0
-        ? <EmptyState icon="checkmark-circle-outline" title="Semua MK Sudah Didaftarkan" subtitle="Anda telah terdaftar di semua mata kuliah yang tersedia" />
-        : (
-          <FlatList
-            data={available}
-            keyExtractor={i => i._id}
-            contentContainerStyle={s.list}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const filled = item.quota - (item.quota ?? 0);
-              const quotaColor = item.quota > 5 ? C.success : C.warning;
-              return (
-                <View style={s.card}>
-                  <View style={s.cardTop}>
-                    <GoldChip label={item.code} />
-                    <Badge label={`${item.credits} SKS`} color={C.primary} bg={C.primaryLight} />
+      <PageHeader title="Akademik" subtitle={`Halo, ${user?.name?.split(' ')[0]} 👋`} showBack={false} />
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        {pairs.map((pair, pi) => (
+          <View key={pi} style={s.row}>
+            {pair.map((m, ci) =>
+              m ? (
+                <TouchableOpacity key={ci} style={s.card} onPress={() => router.push(m.route as any)} activeOpacity={0.75}>
+                  <View style={s.iconBox}>
+                    <Ionicons name={m.icon as any} size={22} color={C.text} />
                   </View>
-                  <Text style={s.courseName}>{item.name}</Text>
-
-                  <View style={s.infoRow}>
-                    <Ionicons name="time-outline" size={13} color={C.textMuted} />
-                    <Text style={s.infoTxt}>{item.schedule}</Text>
-                  </View>
-                  <View style={s.infoRow}>
-                    <Ionicons name="person-outline" size={13} color={C.textMuted} />
-                    <Text style={s.infoTxt}>{item.lecturer}</Text>
-                  </View>
-
-                  <View style={s.cardBottom}>
-                    <View style={[s.quotaChip, { backgroundColor: quotaColor + '18' }]}>
-                      <Ionicons name="people-outline" size={12} color={quotaColor} />
-                      <Text style={[s.quotaTxt, { color: quotaColor }]}>Kuota: {item.quota}</Text>
-                    </View>
-                    <TouchableOpacity style={s.addBtn} onPress={() => handleRegister(item._id, item.name)} activeOpacity={0.8}>
-                      <LinearGradient colors={[C.primary, C.primaryMid]} style={s.addGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
-                        <Ionicons name="add" size={16} color="#FFF" />
-                        <Text style={s.addTxt}>Daftar</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            }}
-          />
-        )
-      }
+                  <Text style={s.name}>{m.name}</Text>
+                  <Text style={s.desc}>{m.desc}</Text>
+                </TouchableOpacity>
+              ) : (
+                <View key={ci} style={s.cardEmpty} />
+              )
+            )}
+          </View>
+        ))}
+        <View style={{ height: 24 }} />
+      </ScrollView>
     </View>
   );
 }
 
-import { LinearGradient } from 'expo-linear-gradient';
 const s = StyleSheet.create({
-  root:       { flex: 1, backgroundColor: C.background },
-  list:       { padding: 16, gap: 10 },
-  card:       { backgroundColor: C.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.borderLight, shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
-  cardTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  courseName: { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 8 },
-  infoRow:    { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
-  infoTxt:    { fontSize: 12, color: C.textSub },
-  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
-  quotaChip:  { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  quotaTxt:   { fontSize: 11, fontWeight: '600' },
-  addBtn:     { borderRadius: 10, overflow: 'hidden' },
-  addGrad:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 14, paddingVertical: 8 },
-  addTxt:     { fontSize: 13, fontWeight: '700', color: '#FFF' },
+  root:      { flex: 1, backgroundColor: C.bg },
+  scroll:    { padding: 16, gap: 10 },
+  row:       { flexDirection: 'row', gap: 10 },
+  card:      { flex: 1, backgroundColor: C.surface, borderRadius: R.lg, padding: 16, borderWidth: 1, borderColor: C.border, gap: 8, ...SH.xs },
+  cardEmpty: { flex: 1 },
+  iconBox:   { width: 44, height: 44, borderRadius: R.md, backgroundColor: C.g100, alignItems: 'center', justifyContent: 'center' },
+  name:      { fontSize: 13, fontWeight: '700', color: C.text },
+  desc:      { fontSize: 11, color: C.textMuted, lineHeight: 16 },
 });
