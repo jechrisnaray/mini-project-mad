@@ -1,14 +1,24 @@
-import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  StatusBar, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-} from 'react-native';
-import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
-import { useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
 import { Ionicons } from '@expo/vector-icons';
+import { useMutation } from 'convex/react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SH } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
-import C, { SH, R } from '../constants/Colors';
+import { api } from '../convex/_generated/api';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -17,18 +27,19 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
-  // Fungsi seedAll ada di convex/users.ts → api.users.seedAll
-  const seedAll  = useMutation(api.users.seedAll);
+  const seedAll = useMutation(api.users.seedAll);
   const loginMut = useMutation(api.users.login);
 
-  // Seed data awal saat app dibuka
-  useEffect(() => { seedAll().catch(() => {}); }, []);
+  useEffect(() => {
+    seedAll().catch(() => {});
+  }, []);
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
       Alert.alert('Peringatan', 'Username dan password wajib diisi.');
       return;
     }
+
     setLoading(true);
     try {
       const u = await loginMut({ username: username.trim(), password });
@@ -42,32 +53,55 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
-      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      style={s.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <StatusBar barStyle="light-content" backgroundColor="#1E2749" />
 
-        {/* Logo */}
-        <View style={s.logoArea}>
-          <View style={s.logoBox}>
-            <Text style={s.logoTxt}>SIU</Text>
+      <LinearGradient
+        colors={['#1E2749', '#25315C', '#33406E']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View style={s.bgCircleTop} />
+      <View style={s.bgCircleBottom} />
+
+      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+        <View style={s.hero}>
+          <View style={s.logoWrap}>
+            <LinearGradient
+              colors={['#FFFFFF', '#EEF2FF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={s.logoInner}
+            >
+              <Ionicons name="school-outline" size={28} color="#2D3A67" />
+            </LinearGradient>
           </View>
-          <Text style={s.appName}>Universitas Klabat</Text>
-          <Text style={s.appSub}>Sistem Informasi Akademik</Text>
+
+          <Text style={s.heroTitle}>Sistem Informasi Akademik</Text>
+          <Text style={s.heroSubtitle}>
+            Masuk untuk melanjutkan ke layanan akademik Anda
+          </Text>
         </View>
 
-        {/* Form */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>Masuk ke akun Anda</Text>
+          <Text style={s.cardTitle}>Masuk</Text>
+          <Text style={s.cardDesc}>
+            Gunakan username dan password yang telah terdaftar
+          </Text>
 
-          {/* Username */}
           <View style={s.field}>
             <Text style={s.label}>Username</Text>
-            <View style={s.inputRow}>
-              <Ionicons name="person-outline" size={15} color={C.g400} />
+            <View style={s.inputWrap}>
+              <Ionicons name="person-outline" size={18} color="#64748B" />
               <TextInput
                 style={s.input}
                 placeholder="Masukkan username"
-                placeholderTextColor={C.textDisabled}
+                placeholderTextColor="#94A3B8"
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
@@ -75,77 +109,313 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Password */}
           <View style={s.field}>
             <Text style={s.label}>Password</Text>
-            <View style={s.inputRow}>
-              <Ionicons name="lock-closed-outline" size={15} color={C.g400} />
+            <View style={s.inputWrap}>
+              <Ionicons name="lock-closed-outline" size={18} color="#64748B" />
               <TextInput
-                style={[s.input, { flex: 1 }]}
+                style={s.input}
                 placeholder="Masukkan password"
-                placeholderTextColor={C.textDisabled}
+                placeholderTextColor="#94A3B8"
                 secureTextEntry={!showPw}
                 value={password}
                 onChangeText={setPassword}
               />
-              <TouchableOpacity onPress={() => setShowPw(v => !v)}>
-                <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={15} color={C.g400} />
+              <TouchableOpacity onPress={() => setShowPw(v => !v)} style={s.eyeBtn}>
+                <Ionicons
+                  name={showPw ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color="#64748B"
+                />
               </TouchableOpacity>
             </View>
           </View>
 
-          <TouchableOpacity style={[s.btn, loading && { opacity: 0.6 }]} onPress={handleLogin} disabled={loading}>
-            {loading ? <ActivityIndicator size="small" color={C.white} /> : <Text style={s.btnTxt}>Masuk</Text>}
+          <TouchableOpacity
+            style={[s.btn, loading && s.btnDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={['#2F4C8F', '#3E5FA8']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={s.btnGradient}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
+                  <Text style={s.btnTxt}>Masuk</Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity style={s.regRow} onPress={() => router.push('/register' as any)}>
-            <Text style={s.regTxt}>Belum punya akun? <Text style={{ fontWeight: '700', color: C.text }}>Daftar sekarang</Text></Text>
+            <Text style={s.regTxt}>
+              Belum punya akun? <Text style={s.regLink}>Daftar sekarang</Text>
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Info akun demo */}
-        <View style={s.demo}>
-          <Text style={s.demoHead}>Akun Demo</Text>
-          <View style={s.demoRow}>
-            <View style={{ flex: 1, alignItems: 'center' }}>
+        <View style={s.demoCard}>
+          <Text style={s.demoTitle}>Akun Demo</Text>
+
+          <View style={s.demoGrid}>
+            <View style={s.demoBox}>
               <Text style={s.demoRole}>Mahasiswa</Text>
-              <Text style={s.demoCred}>yeremia / 12345</Text>
+              <Text style={s.demoUser}>yeremia</Text>
+              <Text style={s.demoPass}>12345</Text>
             </View>
-            <View style={{ width: 1, height: 28, backgroundColor: C.border }} />
-            <View style={{ flex: 1, alignItems: 'center' }}>
+
+            <View style={s.demoDivider} />
+
+            <View style={s.demoBox}>
               <Text style={s.demoRole}>Admin</Text>
-              <Text style={s.demoCred}>admin / admin123</Text>
+              <Text style={s.demoUser}>admin</Text>
+              <Text style={s.demoPass}>admin123</Text>
             </View>
           </View>
         </View>
-
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const PT = (StatusBar.currentHeight ?? 44) + 16;
+
 const s = StyleSheet.create({
-  root:     { flex: 1, backgroundColor: C.bg },
-  scroll:   { flexGrow: 1, padding: 24, paddingTop: PT, paddingBottom: 40, justifyContent: 'center' },
-  logoArea: { alignItems: 'center', marginBottom: 32, gap: 6 },
-  logoBox:  { width: 56, height: 56, borderRadius: R.lg, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center', marginBottom: 8, ...SH.md },
-  logoTxt:  { fontSize: 14, fontWeight: '900', color: C.white },
-  appName:  { fontSize: 18, fontWeight: '800', color: C.text },
-  appSub:   { fontSize: 12, color: C.textMuted },
-  card:     { backgroundColor: C.surface, borderRadius: R.xl, padding: 24, borderWidth: 1, borderColor: C.border, ...SH.sm },
-  cardTitle:{ fontSize: 14, fontWeight: '600', color: C.textMuted, marginBottom: 20 },
-  field:    { marginBottom: 14 },
-  label:    { fontSize: 11, fontWeight: '600', color: C.textMuted, marginBottom: 6 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.g100, borderRadius: R.md, borderWidth: 1.5, borderColor: C.border, paddingHorizontal: 12, height: 46 },
-  input:    { flex: 1, fontSize: 14, color: C.text },
-  btn:      { height: 46, backgroundColor: C.ink, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  btnTxt:   { color: C.white, fontSize: 14, fontWeight: '700' },
-  regRow:   { alignItems: 'center', marginTop: 16 },
-  regTxt:   { fontSize: 13, color: C.textMuted },
-  demo:     { marginTop: 14, backgroundColor: C.surface, borderRadius: R.lg, padding: 14, borderWidth: 1, borderColor: C.border },
-  demoHead: { fontSize: 10, fontWeight: '700', color: C.textMuted, marginBottom: 10 },
-  demoRow:  { flexDirection: 'row', alignItems: 'center' },
-  demoRole: { fontSize: 10, color: C.textMuted },
-  demoCred: { fontSize: 12, fontWeight: '700', color: C.text },
+  root: {
+    flex: 1,
+    backgroundColor: '#1E2749',
+  },
+
+  scroll: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: PT,
+    paddingBottom: 40,
+  },
+
+  bgCircleTop: {
+    position: 'absolute',
+    top: -80,
+    right: -40,
+    width: 220,
+    height: 220,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+
+  bgCircleBottom: {
+    position: 'absolute',
+    bottom: -60,
+    left: -50,
+    width: 220,
+    height: 220,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+
+  hero: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+
+  logoWrap: {
+    width: 86,
+    height: 86,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+
+  logoInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+
+  heroSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.78)',
+    textAlign: 'center',
+    lineHeight: 21,
+    paddingHorizontal: 18,
+  },
+
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 26,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.65)',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 12,
+  },
+
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+
+  cardDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 20,
+    marginBottom: 22,
+  },
+
+  field: {
+    marginBottom: 15,
+  },
+
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 8,
+  },
+
+  inputWrap: {
+    height: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+  },
+
+  input: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F172A',
+  },
+
+  eyeBtn: {
+    paddingLeft: 6,
+    paddingVertical: 4,
+  },
+
+  btn: {
+    marginTop: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...SH.sm,
+  },
+
+  btnGradient: {
+    height: 54,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  btnDisabled: {
+    opacity: 0.75,
+  },
+
+  btnTxt: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+
+  regRow: {
+    alignItems: 'center',
+    marginTop: 18,
+  },
+
+  regTxt: {
+    fontSize: 13,
+    color: '#64748B',
+  },
+
+  regLink: {
+    color: '#2F4C8F',
+    fontWeight: '800',
+  },
+
+  demoCard: {
+    marginTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+
+  demoTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+
+  demoGrid: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+
+  demoBox: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+
+  demoDivider: {
+    width: 1,
+    backgroundColor: '#E2E8F0',
+  },
+
+  demoRole: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 6,
+  },
+
+  demoUser: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+
+  demoPass: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2F4C8F',
+    marginTop: 2,
+  },
 });
