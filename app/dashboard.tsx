@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { LoadingScreen } from '../components/ui';
 import { SH } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../convex/_generated/api';
@@ -44,13 +43,16 @@ const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
 const greet = () => {
   const h = new Date().getHours();
-  return h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
+  if (h < 11) return 'Selamat pagi';
+  if (h < 15) return 'Selamat siang';
+  if (h < 18) return 'Selamat sore';
+  return 'Selamat malam';
 };
 
 const initials = (n: string) =>
   n
     .split(' ')
-    .map(w => w[0])
+    .map((w) => w[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
@@ -58,35 +60,63 @@ const initials = (n: string) =>
 export default function DashboardScreen() {
   const { user, isLoading } = useAuth();
 
-  const regs = useQuery(api.registrations.listByUser, user ? { userId: user._id as any } : 'skip');
-  const grades = useQuery(api.grades.listByUser, user ? { userId: user._id as any } : 'skip');
-  const scheds = useQuery(api.scheadules.listByUser, user ? { userId: user._id as any } : 'skip');
-  const anns = useQuery(api.announcements.list);
+  const regs =
+    useQuery(
+      api.registrations.listByUser,
+      user ? { userId: user._id as any } : 'skip'
+    ) ?? [];
+
+  const grades =
+    useQuery(
+      api.grades.listByUser,
+      user ? { userId: user._id as any } : 'skip'
+    ) ?? [];
+
+  const scheds =
+    useQuery(
+      api.scheadules.listByUser,
+      user ? { userId: user._id as any } : 'skip'
+    ) ?? [];
+
+  const anns = useQuery(api.announcements.list) ?? [];
 
   useEffect(() => {
-    if (!isLoading && !user) router.replace('/login');
+    if (!isLoading && !user) {
+      router.replace('/login');
+    }
   }, [user, isLoading]);
 
   if (isLoading || !user) return null;
-  if (!regs || !grades || !scheds) return <LoadingScreen />;
 
-  const active = regs.filter(r => r.status === 'registered');
-  const totalSKS = active.reduce((s, r) => s + (r.course?.credits ?? 0), 0);
-  const maxSks = user.maxSks ?? 24;
+  const active = regs.filter((r: any) => r.status === 'registered');
+  const totalSKS = active.reduce(
+    (sum: number, r: any) => sum + (r.course?.credits ?? 0),
+    0
+  );
+
+  const maxSks = (user as any)?.maxSks ?? 24;
 
   let ipk = 0;
-  if (grades.length) {
-    const wb = grades.reduce((s, g) => s + (GW[g.grade] ?? 0) * (g.course?.credits ?? 0), 0);
-    const ws = grades.reduce((s, g) => s + (g.course?.credits ?? 0), 0);
-    if (ws > 0) ipk = wb / ws;
+  if (grades.length > 0) {
+    const weightedBobot = grades.reduce(
+      (sum: number, g: any) => sum + (GW[g.grade] ?? 0) * (g.course?.credits ?? 0),
+      0
+    );
+    const weightedSks = grades.reduce(
+      (sum: number, g: any) => sum + (g.course?.credits ?? 0),
+      0
+    );
+    if (weightedSks > 0) ipk = weightedBobot / weightedSks;
   }
 
   const todayStr = DAYS[new Date().getDay()];
   const todayScheds = scheds
-    .filter(s => s.day === todayStr)
-    .sort((a, b) => a.time.localeCompare(b.time));
+    .filter((s: any) => s.day === todayStr)
+    .sort((a: any, b: any) => a.time.localeCompare(b.time));
 
-  const menus = MENUS.filter(m => (m.roles as readonly string[]).includes(user.role));
+  const menus = MENUS.filter((m) =>
+    (m.roles as readonly string[]).includes((user as any).role)
+  );
 
   const stats = [
     { val: active.length, lbl: 'MK Aktif', icon: 'layers-outline' },
@@ -113,17 +143,18 @@ export default function DashboardScreen() {
             <View style={{ flex: 1 }}>
               <Text style={s.greeting}>{greet()}</Text>
               <Text style={s.name}>{user.name.split(' ')[0]} 👋</Text>
-              <Text style={s.subhead}>
-                Semoga harimu produktif dan menyenangkan
-              </Text>
+              <Text style={s.subhead}>Semoga harimu produktif dan menyenangkan</Text>
             </View>
 
-            <TouchableOpacity style={s.avatarBtn} onPress={() => router.push('/profile' as any)}>
+            <TouchableOpacity
+              style={s.avatarBtn}
+              onPress={() => router.push('/profile' as any)}
+            >
               <Text style={s.avatarTxt}>{initials(user.name)}</Text>
             </TouchableOpacity>
           </View>
 
-          {user.role === 'student' && (
+          {(user as any).role === 'student' && (
             <View style={s.statsRow}>
               {stats.map((st, i) => (
                 <View key={i} style={s.statCard}>
@@ -143,19 +174,19 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.scrollContent}
       >
-        {user.role === 'student' && (
+        {(user as any).role === 'student' && (
           <View style={s.banner}>
             <View style={s.bannerIcon}>
               <Ionicons name="time-outline" size={16} color="#2F4C8F" />
             </View>
             <Text style={s.bannerTxt}>
               Masa studi aktif hingga{' '}
-              <Text style={s.bannerStrong}>{user.activeUntil ?? '—'}</Text>
+              <Text style={s.bannerStrong}>{(user as any).activeUntil ?? '—'}</Text>
             </Text>
           </View>
         )}
 
-        {anns && anns.length > 0 && (
+        {anns.length > 0 && (
           <View style={s.section}>
             <View style={s.secHead}>
               <Text style={s.secTitle}>Pengumuman</Text>
@@ -164,7 +195,7 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {anns.map(a => (
+            {anns.map((a: any) => (
               <View key={a._id} style={s.annCard}>
                 <LinearGradient
                   colors={['#EEF2FF', '#F8FAFC']}
@@ -184,7 +215,7 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {user.role === 'student' && (
+        {(user as any).role === 'student' && (
           <View style={s.section}>
             <View style={s.secRow}>
               <Text style={s.secTitle}>Jadwal {todayStr}</Text>
@@ -196,13 +227,19 @@ export default function DashboardScreen() {
             {todayScheds.length === 0 ? (
               <View style={s.emptyCard}>
                 <View style={s.emptyIcon}>
-                  <Ionicons name="calendar-clear-outline" size={22} color="#64748B" />
+                  <Ionicons
+                    name="calendar-clear-outline"
+                    size={22}
+                    color="#64748B"
+                  />
                 </View>
                 <Text style={s.emptyTitle}>Belum ada jadwal</Text>
-                <Text style={s.emptyTxt}>Tidak ada kelas yang terjadwal untuk hari ini</Text>
+                <Text style={s.emptyTxt}>
+                  Tidak ada kelas yang terjadwal untuk hari ini
+                </Text>
               </View>
             ) : (
-              todayScheds.map(sc => (
+              todayScheds.map((sc: any) => (
                 <View key={sc._id} style={s.schedCard}>
                   <LinearGradient
                     colors={['#2F4C8F', '#3E5FA8']}
@@ -210,8 +247,8 @@ export default function DashboardScreen() {
                     end={{ x: 1, y: 1 }}
                     style={s.schedTime}
                   >
-                    <Text style={s.schedStart}>{sc.time.split('-')[0]}</Text>
-                    <Text style={s.schedEnd}>{sc.time.split('-')[1]}</Text>
+                    <Text style={s.schedStart}>{sc.time?.split('-')[0] ?? '--'}</Text>
+                    <Text style={s.schedEnd}>{sc.time?.split('-')[1] ?? '--'}</Text>
                   </LinearGradient>
 
                   <View style={s.schedBody}>
@@ -220,12 +257,12 @@ export default function DashboardScreen() {
                         {sc.course?.name ?? '—'}
                       </Text>
                       <View style={s.schedCode}>
-                        <Text style={s.schedCodeTxt}>{sc.course?.code}</Text>
+                        <Text style={s.schedCodeTxt}>{sc.course?.code ?? '-'}</Text>
                       </View>
                     </View>
 
                     <Text style={s.schedRoom}>
-                      {sc.room} · {sc.course?.lecturer}
+                      {sc.room ?? '-'} · {sc.course?.lecturer ?? '-'}
                     </Text>
                   </View>
                 </View>
@@ -266,6 +303,9 @@ export default function DashboardScreen() {
 
 const PT = (StatusBar.currentHeight ?? 44) + 10;
 const MCOL = '47.5%';
+
+const shadowXs = SH?.xs ?? {};
+const shadowSm = SH?.sm ?? {};
 
 const s = StyleSheet.create({
   root: {
@@ -359,7 +399,7 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     alignItems: 'center',
-    ...SH.sm,
+    ...shadowSm,
   },
 
   statIcon: {
@@ -400,7 +440,7 @@ const s = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    ...SH.xs,
+    ...shadowXs,
   },
 
   bannerIcon: {
@@ -480,7 +520,7 @@ const s = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    ...SH.xs,
+    ...shadowXs,
   },
 
   annIconWrap: {
@@ -512,7 +552,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     alignItems: 'center',
-    ...SH.xs,
+    ...shadowXs,
   },
 
   emptyIcon: {
@@ -547,7 +587,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     alignItems: 'center',
-    ...SH.xs,
+    ...shadowXs,
   },
 
   schedTime: {
@@ -624,7 +664,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    ...SH.xs,
+    ...shadowXs,
   },
 
   menuIcon: {
