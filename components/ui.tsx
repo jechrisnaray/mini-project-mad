@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import C, { SH, R } from '../constants/Colors';
 
-// ── PageHeader ─────────────────────────────────────────────────────────────
+// ── PageHeader ──────────────────────────────────────────────────────────────
 export function PageHeader({ title, subtitle, showBack = true, right }: {
   title: string;
   subtitle?: string;
@@ -13,11 +13,9 @@ export function PageHeader({ title, subtitle, showBack = true, right }: {
 }) {
   return (
     <View style={s.header}>
-      {/* Top gradient strip */}
-      <View style={s.headerStrip} />
       <View style={s.headerInner}>
         {showBack && (
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.75}>
             <Ionicons name="chevron-back" size={18} color={C.primary} />
           </TouchableOpacity>
         )}
@@ -31,19 +29,17 @@ export function PageHeader({ title, subtitle, showBack = true, right }: {
   );
 }
 
-// ── LoadingScreen ──────────────────────────────────────────────────────────
+// ── LoadingScreen ────────────────────────────────────────────────────────────
 export function LoadingScreen() {
   return (
     <View style={s.loading}>
-      <View style={s.loadingRing}>
-        <ActivityIndicator size="small" color={C.primary} />
-      </View>
-      <Text style={s.loadingTxt}>Memuat data…</Text>
+      <ActivityIndicator size="small" color={C.primary} />
+      <Text style={s.loadingTxt}>Memuat…</Text>
     </View>
   );
 }
 
-// ── EmptyState ─────────────────────────────────────────────────────────────
+// ── EmptyState ───────────────────────────────────────────────────────────────
 export function EmptyState({ icon, title, subtitle }: {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
@@ -51,10 +47,8 @@ export function EmptyState({ icon, title, subtitle }: {
 }) {
   return (
     <View style={s.empty}>
-      <View style={s.emptyIconWrap}>
-        <View style={s.emptyIconRing}>
-          <Ionicons name={icon} size={24} color={C.primaryLight} />
-        </View>
+      <View style={s.emptyIcon}>
+        <Ionicons name={icon} size={26} color={C.primaryLight} />
       </View>
       <Text style={s.emptyTitle}>{title}</Text>
       {subtitle && <Text style={s.emptySub}>{subtitle}</Text>}
@@ -62,7 +56,7 @@ export function EmptyState({ icon, title, subtitle }: {
   );
 }
 
-// ── PrimaryButton ──────────────────────────────────────────────────────────
+// ── PrimaryButton ─────────────────────────────────────────────────────────────
 export function PrimaryButton({ label, onPress, loading = false, icon, danger = false, disabled = false }: {
   label: string;
   onPress: () => void;
@@ -77,14 +71,13 @@ export function PrimaryButton({ label, onPress, loading = false, icon, danger = 
       style={[s.btn, danger && s.btnDanger, off && s.btnOff]}
       onPress={onPress}
       disabled={off}
-      activeOpacity={0.85}
+      activeOpacity={0.82}
     >
-      <View style={s.btnSheen} />
       {loading ? (
         <ActivityIndicator size="small" color={C.white} />
       ) : (
         <View style={s.btnRow}>
-          {icon && <Ionicons name={icon} size={15} color={C.white} />}
+          {icon && <Ionicons name={icon} size={16} color={C.white} />}
           <Text style={s.btnTxt}>{label}</Text>
         </View>
       )}
@@ -95,48 +88,23 @@ export function PrimaryButton({ label, onPress, loading = false, icon, danger = 
 const PT = (StatusBar.currentHeight ?? 0);
 
 const s = StyleSheet.create({
-  // PageHeader
-  header:       { backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.borderLight, paddingTop: PT, ...SH.xs },
-  headerStrip:  { height: 3, backgroundColor: C.primaryLight, opacity: 0.6 },
-  headerInner:  { flexDirection:'row', alignItems:'center', gap:12, paddingHorizontal:16, paddingVertical:13 },
-  backBtn:      {
-    width:34, height:34, borderRadius:R.md,
-    backgroundColor: C.primaryFaint,
-    alignItems:'center', justifyContent:'center',
-    borderWidth:1, borderColor:C.primaryPale,
-  },
-  title:        { fontSize:16, fontWeight:'800', color:C.text, letterSpacing:-0.2 },
-  subtitle:     { fontSize:11, color:C.textMuted, marginTop:1 },
+  header:      { backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.borderLight, paddingTop: PT, ...SH.xs },
+  headerInner: { flexDirection:'row', alignItems:'center', gap:12, paddingHorizontal:16, paddingVertical:14 },
+  backBtn:     { width:34, height:34, borderRadius:R.md, backgroundColor:C.primaryFaint, alignItems:'center', justifyContent:'center', borderWidth:1, borderColor:C.primaryPale },
+  title:       { fontSize:17, fontWeight:'800', color:C.text, letterSpacing:-0.3 },
+  subtitle:    { fontSize:11, color:C.textMuted, marginTop:2 },
 
-  // LoadingScreen
-  loading:    { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:C.bg, gap:12 },
-  loadingRing:{ width:48, height:48, borderRadius:24, borderWidth:2, borderColor:C.primaryPale, alignItems:'center', justifyContent:'center' },
-  loadingTxt: { fontSize:12, color:C.textMuted, fontWeight:'500' },
+  loading:     { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:C.bg, gap:10 },
+  loadingTxt:  { fontSize:12, color:C.textMuted },
 
-  // EmptyState
-  empty:        { flex:1, alignItems:'center', justifyContent:'center', padding:40, gap:12 },
-  emptyIconWrap:{ marginBottom:4 },
-  emptyIconRing:{
-    width:64, height:64, borderRadius:32,
-    backgroundColor:C.primaryFaint,
-    alignItems:'center', justifyContent:'center',
-    borderWidth:2, borderColor:C.primaryPale,
-  },
-  emptyTitle:   { fontSize:15, fontWeight:'700', color:C.text, textAlign:'center' },
-  emptySub:     { fontSize:12, color:C.textMuted, textAlign:'center', lineHeight:19 },
+  empty:       { flex:1, alignItems:'center', justifyContent:'center', padding:40, gap:10 },
+  emptyIcon:   { width:60, height:60, borderRadius:30, backgroundColor:C.primaryFaint, alignItems:'center', justifyContent:'center', marginBottom:4, borderWidth:1.5, borderColor:C.primaryPale },
+  emptyTitle:  { fontSize:15, fontWeight:'700', color:C.text },
+  emptySub:    { fontSize:12, color:C.textMuted, textAlign:'center', lineHeight:19 },
 
-  // PrimaryButton
-  btn:      {
-    height:50, overflow:'hidden',
-    alignItems:'center', justifyContent:'center',
-    backgroundColor:C.primary, borderRadius:R.xl, ...SH.md,
-  },
-  btnSheen: {
-    position:'absolute', top:0, left:0, right:0, height:'50%',
-    backgroundColor:'rgba(255,255,255,0.07)',
-  },
-  btnRow:   { flexDirection:'row', alignItems:'center', gap:8 },
-  btnDanger:{ backgroundColor: C.danger },
-  btnOff:   { opacity:0.4 },
-  btnTxt:   { color:C.white, fontSize:14, fontWeight:'800', letterSpacing:0.2 },
+  btn:         { height:50, alignItems:'center', justifyContent:'center', backgroundColor:C.primary, borderRadius:R.xl, ...SH.sm },
+  btnRow:      { flexDirection:'row', alignItems:'center', gap:8 },
+  btnDanger:   { backgroundColor:C.danger },
+  btnOff:      { opacity:0.4 },
+  btnTxt:      { color:C.white, fontSize:14, fontWeight:'700' },
 });

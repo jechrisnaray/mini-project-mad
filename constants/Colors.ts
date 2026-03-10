@@ -1,71 +1,77 @@
 /**
- * Colors.ts — Botanical Luxury Palette
- * Deep forest greens + warm cream + gold accent
- * Eye-friendly, premium, nature-inspired
+ * Colors.ts — Refined Forest Green System
+ * Deep forest greens · warm cream · subtle gold
+ * Professional, clean, easy on the eyes
  */
 
 const C = {
   // ── Backgrounds ───────────────────────────────────────────
-  bg:           '#F0F7F2',
-  bgDeep:       '#E4F0E8',
+  bg:           '#F2F6F3',
   surface:      '#FFFFFF',
-  surfaceTint:  '#F7FCF8',
+  surfaceAlt:   '#F8FBF9',
 
   // ── Text ──────────────────────────────────────────────────
-  text:         '#0F2419',
-  textSub:      '#234D35',
-  textMuted:    '#4E7A5E',
-  textLight:    '#7AAD8A',
-  textDisabled: '#B2CEBC',
+  text:         '#111D16',
+  textSub:      '#2D5240',
+  textMuted:    '#5A7D6A',
+  textLight:    '#8FB09F',
+  textDisabled: '#C2D6CB',
 
   // ── Primary greens ────────────────────────────────────────
-  primary:      '#1B5E35',
-  primaryMid:   '#2E7D50',
-  primaryLight: '#52B788',
-  primaryPale:  '#D8F0E2',
-  primaryFaint: '#EDF7F1',
+  primary:      '#1A6B3E',
+  primaryDark:  '#134F2E',
+  primaryDeep:  '#0D3820',
+  primaryMid:   '#2E8B5A',
+  primaryLight: '#4CAF78',
+  primaryPale:  '#D0EAD8',
+  primaryFaint: '#EBF5EE',
 
   // ── Accent ────────────────────────────────────────────────
-  gold:         '#C8963C',
-  goldLight:    '#F5E6C8',
-  mint:         '#95D5B2',
+  gold:         '#B8862A',
+  goldLight:    '#F0E0B0',
+  goldFaint:    '#FAF3DC',
+  mint:         '#7EC8A0',
+  teal:         '#2D9B72',
 
   // ── Semantic ──────────────────────────────────────────────
-  success:      '#2E7D50',
-  successLight: '#D8F0E2',
-  warning:      '#C8963C',
-  warningLight: '#F5E6C8',
-  danger:       '#C0392B',
+  success:      '#1A6B3E',
+  successLight: '#D0EAD8',
+  warning:      '#B8862A',
+  warningLight: '#F0E0B0',
+  danger:       '#B53A2E',
   dangerLight:  '#FDECEA',
 
   // ── Greyscale (green-tinted) ───────────────────────────────
   white:  '#FFFFFF',
-  g50:    '#F5FAF7',
-  g100:   '#EAF2EE',
-  g200:   '#D3E8DA',
-  g300:   '#B0D0BC',
-  g400:   '#84AB93',
-  g500:   '#5A8A6C',
-  g600:   '#3E6B52',
-  g700:   '#2B5040',
-  g800:   '#1A3328',
-  g900:   '#0F2018',
+  g50:    '#F4F9F6',
+  g100:   '#E8F2EC',
+  g200:   '#CDE0D5',
+  g300:   '#A8C4B5',
+  g400:   '#7A9E8D',
+  g500:   '#517A67',
+  g600:   '#3A5E4D',
+  g700:   '#274538',
+  g800:   '#182E25',
+  g900:   '#0E1E17',
 
   // ── Borders ───────────────────────────────────────────────
-  border:       '#D0E8D8',
-  borderLight:  '#E4F0E8',
+  border:       '#CBE0D2',
+  borderLight:  '#E2EFE7',
 
-  // ── Legacy aliases (backward compat) ──────────────────────
-  ink:          '#1B5E35',
+  // ── Legacy ──────────────────────────────────────────────
+  ink:          '#1A6B3E',
+  accentBg:     '#F0E0B0',
+  accentLight:  '#D4A840',
+  accentDark:   '#7A5A10',
 };
 
 export default C;
 
 export const SH = {
-  xs: { shadowColor:'#1B5E35', shadowOffset:{width:0,height:1},  shadowOpacity:0.05, shadowRadius:3,  elevation:1 },
-  sm: { shadowColor:'#1B5E35', shadowOffset:{width:0,height:3},  shadowOpacity:0.08, shadowRadius:8,  elevation:3 },
-  md: { shadowColor:'#1B5E35', shadowOffset:{width:0,height:6},  shadowOpacity:0.12, shadowRadius:16, elevation:6 },
-  lg: { shadowColor:'#0F2018', shadowOffset:{width:0,height:12}, shadowOpacity:0.18, shadowRadius:28, elevation:10 },
+  xs: { shadowColor:'#0D3820', shadowOffset:{width:0,height:1},  shadowOpacity:0.06, shadowRadius:3,  elevation:1 },
+  sm: { shadowColor:'#0D3820', shadowOffset:{width:0,height:3},  shadowOpacity:0.09, shadowRadius:8,  elevation:3 },
+  md: { shadowColor:'#0D3820', shadowOffset:{width:0,height:6},  shadowOpacity:0.12, shadowRadius:16, elevation:6 },
+  lg: { shadowColor:'#0D3820', shadowOffset:{width:0,height:12}, shadowOpacity:0.16, shadowRadius:28, elevation:10 },
 } as const;
 
 export const R = {
