@@ -31,6 +31,8 @@ const MENUS = [
   { name:'Ospek & KKN',   icon:'flag-outline',            route:'/ospek-kkn',          roles:['student'] },
   { name:'Biaya Smt',     icon:'receipt-outline',         route:'/semester-cost',      roles:['student'] },
   { name:'Input Nilai',   icon:'create-outline',          route:'/input-grade',        roles:['admin'] },
+  // ✅ Menu baru untuk admin: lihat semua evaluasi dosen
+  { name:'Evaluasi Dosen', icon:'star-outline',           route:'/teacher-evaluations-admin', roles:['admin'] },
 ] as const;
 
 export default function DashboardScreen() {

@@ -36,3 +36,21 @@ export const create = mutation({
     return { success: true };
   },
 });
+
+// ✅ Query baru untuk admin: ambil semua evaluasi + data user & course
+export const listAll = query({
+  args: {},
+  handler: async (ctx) => {
+    const evals = await ctx.db
+      .query('teacherEvaluations')
+      .order('desc')
+      .collect();
+    return Promise.all(
+      evals.map(async (e) => ({
+        ...e,
+        user: await ctx.db.get(e.userId),
+        course: await ctx.db.get(e.courseId),
+      }))
+    );
+  },
+});
